@@ -523,38 +523,13 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
     return null; // Aucune combinaison valide
   }
-  /*
 
-  Fonction qui ne fonctionne pas avec le corps gallois
-
-  protected interpolateLagrange(
-      points: { x: number; y: number }[]
-      ): (x: number) => number {
-      return (x: number) => {
-          let result = 0;
-          for (let i = 0; i < points.length; i++) {
-          let term = points[i].y;
-          for (let j = 0; j < points.length; j++) {
-              if (i !== j) {
-              term *= (x - points[j].x) / (points[i].x - points[j].x);
-              }
-          }
-          result += term;
-          }
-          return result;
-      };
-  }
-*/
   protected evaluatePolynomial(
     polynomial: (x: number) => number,
     x: number
   ): number {
     return polynomial(x);
   }
-
-
-
-
 
   protected mapToObj(map: Map<number, number>): { [k: string]: number } {
     const obj: { [k: string]: number } = {}
@@ -574,6 +549,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   //On le reçoit déjà encodé
   async causal_broadcast(content: Uint8Array) {
+    console.warn('--- Rentre dans causalBroadcast')
+
     //todo
     //On est partit du principe qu'on avait toutes les address ip dans une map idToIp
     // Il faudrait adapter ça a mute

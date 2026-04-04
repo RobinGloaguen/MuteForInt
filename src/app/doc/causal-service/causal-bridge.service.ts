@@ -48,16 +48,13 @@ export class CausalBridgeService implements OnDestroy {
    * @param myPeerId     Le peerId libp2p local (network.solution.libp2pInstance.peerId.toString())
    */
   init(myNetworkId: number, myPeerId: string): void {
-    this.network.onPeersGroupConnectionStatusChange.subscribe(status => {
-      console.log('[CausalBridge] PeersGroupConnectionStatus →', status);
-    });
-   
     //MuteCore reçoit un cast des messages entrant vers le bon type si c'est différent de CausalNode
     //Sinon envoie a CausalNode
     this.subs.push(
       this.network.messageIn.subscribe((msg) => {
         if (msg.streamId.type === Streams.CAUSALNODE || ((msg.streamId.type === Streams.DOCUMENT_CONTENT && 
     msg.streamId.subtype === StreamsSubtype.DOCUMENT_OPERATION))) {
+          console.warn("--- LE CAUSAL RECOIT")
           this.MessageInFromNetworkToCausal$.next(msg)
         }else{
           this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
@@ -74,31 +71,6 @@ export class CausalBridgeService implements OnDestroy {
         this.network.send(streamId, content, recipientNetworkId)
       })
     )
-
-    // ── 2. Construire le CausalService ───────────────────────────────────
-/*
-    // On met a jour les map du CausalService quand un collab Join ou leave
-    this.network.onMemberJoinWithPeerId.subscribe(({ networkId, peerId }) => {
-      //Traitement des "ip" fait directement ici
-      console.warn("rentre dans onMemberJoinWithPeerId de causal-bridge")
-      this.causalService!.idLocalToGlobal.set(networkId, peerId)
-      this.causalService!.idGlobalToLocal.set(peerId, networkId)
-      if (this.causalService!.collaborators.size === this.causalService!.nbCollab - 1) {
-        this.causalService!.mapIpToId()  // doit être public
-      }
-    })
-
-  this.subs.push(
-    this.network.onMemberLeave.subscribe((networkId) => {
-      const peerId = this.causalService!.idLocalToGlobal.get(networkId)
-      if (peerId) {
-        this.causalService!.idLocalToGlobal.delete(networkId)
-        this.causalService!.idGlobalToLocal.delete(peerId)
-        console.warn(`[CausalBridge] Peer ${networkId} (${peerId}) retiré des maps`)
-      }
-    })
-  )
-    */
     this._fromMuteCoreSubject  = new Subject<Uint8Array>()
     const myNetworkId$ = new BehaviorSubject<number>(myNetworkId)
     this.causalService = new CausalService(
@@ -132,6 +104,7 @@ export class CausalBridgeService implements OnDestroy {
         //Ici doit juste changer le type du stream en Document_content et le type du message
         filter((causalMsg: any) => !!causalMsg?.content),
         map((causalMsg: any) => {
+          console.warn("--- CAUSAL A DELIVER")
           return {
             senderNetworkId: causalMsg.initialSender,
             streamId: { 
@@ -160,11 +133,11 @@ export class CausalBridgeService implements OnDestroy {
          //On envoie directement le message codé
           // C'est bien un broadcast
           this._fromMuteCoreSubject!.next(content);
-          console.log(`[CausalBridge] 402 → Causal broadcast`);
+          console.warn("--- Mute core envoie a causal")
         } else {
           //Sinon on envoie direct dans le réseau
           this.sharedMessageOut$.next(msg as unknown as IMessageIn) 
-          console.log(`[CausalBridge] ${streamId.type} (subtype=${streamId.subtype}) → direct network`);
+          //console.warn("Mute core envoie direct dans le réseau")        
         }
       })
     );

@@ -15,6 +15,6 @@ import { ToolbarComponent } from './toolbar/toolbar.component'
 @NgModule({
   imports: [SharedModule, RightSideModule, RouterModule],
   declarations: [DocComponent, EditorComponent, CursorsDirective, ToolbarComponent, SyncComponent, ResolverDialogComponent],
-  providers: [DocResolverService, PulsarService],
+  providers: [DocResolverService, PulsarService, CausalBridgeService],
 })
 export class DocModule {}

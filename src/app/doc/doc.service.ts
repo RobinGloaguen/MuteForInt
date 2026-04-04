@@ -49,8 +49,7 @@ export class DocService implements OnDestroy {
   private docContentChanged: boolean
   private initSubject$: Subject<string>
 
-  //Rajout
-  private causalBridge : CausalBridgeService
+
 
   constructor(
     private zone: NgZone,
@@ -63,7 +62,8 @@ export class DocService implements OnDestroy {
     private cd: ChangeDetectorRef,
     private logs: LogsService,
     private crypto: CryptoService,
-    private docResolver: DocResolverService
+    private docResolver: DocResolverService,
+    private causalBridge: CausalBridgeService  // ← Ajout
   ) {
     this.subs = []
     this.docContentChanged = false

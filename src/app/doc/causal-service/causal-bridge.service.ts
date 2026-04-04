@@ -166,7 +166,7 @@ export class CausalBridgeService implements OnDestroy {
         } else {
           //Sinon on envoie direct dans le réseau
           this.sharedMessageOut$.next(msg as unknown as IMessageIn) 
-          console.log(`[CausalBridge] ${streamId.type} → direct network (400/401)`);
+          console.log(`[CausalBridge] ${streamId.type} (subtype=${streamId.subtype}) → direct network`);
         }
       })
     );

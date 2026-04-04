@@ -444,12 +444,12 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       const decoder = new TextDecoder() //ajout
       const content = decoder.decode(encodeContent) //ajout
       this.deliverSubject.next(new causal.CausalMsg({ mid : {sd, sn}, initialSender: sd, type: causal.CausalType.DELIVER, content }))
-
+      console.warn("---- J'ai déliver c'était différent de null------")
       //todo
       //C'est notre sortie a la couche au dessus via pub sub
       // causal_deliver m
     }
-    console.warn("---- J'ai déliver ------")
+    console.warn("---- J'ai déliver c'était null------")
 
     this.delivered.set(sd, sn)
   }
@@ -560,6 +560,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   //On le reçoit déjà encodé
   async causal_broadcast(content: Uint8Array) {
     console.warn('--- Rentre dans causalBroadcast')
+    console.warn('joinedPeers au moment du broadcast : ', this.joinedPeers)
+    console.warn('myNetworkId : ', this.myNetworkId)
     if (this.joinedPeers.length === 0) {
       console.warn('[CausalService] Pas encore de collaborateurs, broadcast ignoré')
       return
@@ -572,6 +574,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     const past = new Map(this.delivered)
     let i=0
     for (const id of this.joinedPeers) {
+      console.warn(`Envoi shard[${i}] à peer ${id}`)
       const shard = arrayShard[i]
       console.log("Le x est -> : "+shard[shard.length-1])
       const replyMsg = new causal.CausalMsg({

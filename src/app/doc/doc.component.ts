@@ -9,6 +9,7 @@ import { RichCollaboratorsService } from '@app/doc/rich-collaborators/rich-colla
 import { DocService } from './doc.service'
 import { LogsService } from './logs'
 import { NetworkServiceAbstracted } from '@app/doc/network/network.service.abstracted'
+import { CausalBridgeService } from './causal-service/causal-bridge.service'
 
 export enum VIEWPORT {
   LARGE,
@@ -21,7 +22,7 @@ export enum VIEWPORT {
   selector: 'mute-doc',
   templateUrl: './doc.component.html',
   styleUrls: ['./doc.component.scss'],
-  providers: [LogsService, DocService, NetworkServiceAbstracted, RichCollaboratorsService],
+  providers: [LogsService, DocService, NetworkServiceAbstracted, RichCollaboratorsService, CausalBridgeService],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 @Injectable()

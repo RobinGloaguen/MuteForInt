@@ -110,7 +110,6 @@ export class CausalBridgeService implements OnDestroy {
         //Ici doit juste changer le type du stream en Document_content et le type du message
         filter((causalMsg: any) => !!causalMsg?.content),
         map((causalMsg: any) => {
-          console.warn("--- CAUSAL A DELIVER")
           return {
             senderNetworkId: causalMsg.initialSender,
             streamId: { 

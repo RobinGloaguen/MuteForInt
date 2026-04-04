@@ -141,7 +141,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     })
 
     this.messageIn$.subscribe(async ({ senderNetworkId, msg }) => {
-      console.warn("---- Reception dans messageIn$")
+      console.warn("---- Reception dans messageIn$ de "+senderNetworkId)
       const idSender = senderNetworkId
       const InitialSender = msg.initialSender
       const past = msg.deliveredSd as { [k: string]: number } | null

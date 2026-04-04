@@ -91,6 +91,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
           if (!this.joinedPeers.includes(networkId)) {
         this.joinedPeers.push(networkId)
         this.joinedPeers.sort((a, b) => a - b)
+        this.delivered.set(networkId, 0)  // ← ajout
       }
     })
     memberLeave$.subscribe((networkId: number) => {
@@ -106,6 +107,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       this.myNetworkId = id
       this.joinedPeers.push(id)
       this.joinedPeers.sort((a, b) => a - b)
+      this.delivered.set(id, 0)  // ← ajout
     })
     this.deliverSubject = new Subject()
     this.fifoBroadcastSubject = new Subject()
@@ -128,7 +130,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     this.revealSent = new Set()
     this.attestSent = new Set()
 
-    this.delivered = new Map([[1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0]])
+    this.delivered = new Map()
     this.confirmed = new Map()
     this.nbCollab = 6
     this.nbByz = 1

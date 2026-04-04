@@ -157,7 +157,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         case causal.CausalType.SHARD: {
           console.warn("---- Reception shard")
 
-          if (idSender != mid?.sd && (past?.[String(idSender)] ?? 0) + 1 == mid!.sd
+          if (idSender !== mid!.sd
+            || mid!.sn !== (this.delivered.get(mid!.sd!) ?? 0) + 1
             || this.hasInRegister(this.shardRegister, key, idSender)) { return }
           this.addToRegister(this.shardRegister, key, idSender)
 

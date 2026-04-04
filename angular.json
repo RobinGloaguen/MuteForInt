@@ -187,5 +187,8 @@
     "@schematics/angular:directive": {
       "prefix": "mute"
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }

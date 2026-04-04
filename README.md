@@ -1,26 +1,30 @@
 # Ce qu'il y à faire
 
-Le peerId est inutile dans CausalService
+Le protocole fonctionne ! On voit bien `---- J'ai déliver c'était différent de null------` sur les deux machines. Mais seul le "c" est reçu, pas les "d".
 
-Je crois que le senderId qu'on enregistre dans causalService est déjà un identifiant global.
-----
-Ca c'est global, les string sont global
-const myPeerId = libp2p.peerId.toString()
-------------
-On a reçu quelque chose de local — le number que la machine distante a généré aléatoirement pour elle-même.
-Mais du point de vue de notre map, ce number devient une convention partagée : puisque la machine distante a broadcasté ce même number à tous les pairs du document, tout le monde finit par associer "12D3KooWABC..." → 472918364 dans sa propre map.
-Donc :
+Le problème vient du `delivered` qui n'est pas mis à jour correctement. Dans `try_deliver` :
 
-Le string (remotePeerId) est global par nature — libp2p le fournit directement depuis la connexion, c'est cryptographiquement le même pour tout le monde.
-Le number (peerIdAsNumber) est local par origine — généré aléatoirement — mais devient globalement cohérent par propagation, car la machine distante envoie toujours le même à tout le monde.
+```typescript
+this.delivered.set(sd, sn)
+```
 
-----------------
-Vérifier que le networkId et le peerId que je donne a init CausalBridge sont bon.
-C'est le libp2pservice qui crée notre networkID et le publie au abstract network
+Cette ligne met à jour `delivered[sd] = sn`, ce qui est correct. Mais le `waitUntil` dans `causal_broadcast` attend :
 
-Les fichiers libP2Pservice et network Abstract sont authentiques, rien ne diffèrent à part les imports pour le stream.
+```typescript
+await this.waitUntil(() => (this.delivered.get(this.myNetworkId!) ?? 0) >= snMid)
+```
+
+Si l'émetteur n'est pas en train de deliver son propre message (il envoie les shards mais ne les reçoit pas via `messageIn$` car c'est lui-même), `delivered[myNetworkId]` ne se met jamais à jour et le broadcast suivant est bloqué en attente.
+
+Le problème est que tu ne t'envoies pas le shard à toi-même via `messageIn$` — tu l'envoies via le réseau mais il revient comme un message réseau normal. Ajoute une mise à jour directe de `delivered` après le broadcast :
+
+```typescript
+// À la fin de causal_broadcast, remplace le waitUntil par :
+this.delivered.set(this.myNetworkId!, snMid)
+```
+
+Ou mieux, dans `try_deliver`, quand c'est ton propre message qui est délivré (`sd === this.myNetworkId`), le `delivered` se met bien à jour — mais le `waitUntil` dans `causal_broadcast` tourne en parallèle et doit voir cette mise à jour. Vérifie que `try_deliver` est bien appelé pour tes propres messages.
 
 
 -   Gérer la cryptographie. Bug si ce n'est pas de type NONE dans environment.ts, car la clef de décryptage n'a pas l'air d'arriver. Voir si ça vient de nous ou de MUTE de base
 
-- Dans Causal-Bridge il faut maintenant receptionner les collaborateur, avec leurs peerId pour leur assigner le X fixe pour le causal. Je ne l'ai pas fait de base car je voulais juste faire l'intégration sans créer de nouveau bugs, et toucher le moins possibles aux autres fichiers.

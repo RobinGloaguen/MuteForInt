@@ -29,13 +29,10 @@ const CausalMsgFactory = causal.CausalMsg
 
 export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg> {
   //De ip avec 1..n
-  public idLocalToGlobal : Map<number,string>
-  public idGlobalToLocal: Map<string,number>
+ 
   public myNetworkId$ : Observable<number>
   public myNetworkId? : number
   public collaborators: Map<number, ICollaborator>
-  public idGlobalToPolyOrder : Map<string,number>
-
 
   // Compteurs par sd:sn -> Map<sender, count>
   public witness: Map<string, Map<number, number>>
@@ -74,26 +71,44 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   public messageFromMuteCore$ : Observable<Uint8Array>
   public myPeerId : string
 
+  public joinedPeers: number[] = []
+
+
   constructor(
     messageIn$: Observable<IMessageIn>,
     messageOut$: Subject<IMessageOut>,
     myNetworkId$: Observable<number>,
     messageFromMuteCore$ : Observable<Uint8Array>,
-    myPeerId : string
+    myPeerId : string,
+    memberJoin$: Observable<number>,   // à ajouter
+    memberLeave$: Observable<number>   // à ajouter
   ) {
     super(messageIn$, messageOut$, Streams.CAUSALNODE as any, CausalMsgFactory)
+
+    
+    // Enregistrement des entrées
+    memberJoin$.subscribe((networkId: number) => {
+          if (!this.joinedPeers.includes(networkId)) {
+        this.joinedPeers.push(networkId)
+        this.joinedPeers.sort((a, b) => a - b)
+      }
+    })
+    memberLeave$.subscribe((networkId: number) => {
+        this.joinedPeers = this.joinedPeers.filter(id => id !== networkId)
+    })
+
+
     this.myPeerId =myPeerId
-    this.idLocalToGlobal = new Map<number, string>()
-    this.idGlobalToLocal = new Map<string, number>()
+  
     this.myNetworkId$ = myNetworkId$
+    //Je me rajoute dans le set
     this.myNetworkId$.subscribe(id => {
       this.myNetworkId = id
-      this.idLocalToGlobal.set(id, myPeerId)
-      this.idGlobalToLocal.set(myPeerId,id)
+      this.joinedPeers.push(id)
+      this.joinedPeers.sort((a, b) => a - b)
     })
     this.deliverSubject = new Subject()
     this.fifoBroadcastSubject = new Subject()
-    this.idGlobalToPolyOrder = new Map()
     this.confirm = new Map()
     this.suspected = new Set()
     this.witness = new Map()
@@ -536,20 +551,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   }
 
 
-  public mapIpToId(){
-    const allIps = [
-      this.myPeerId,
-      ...Array.from(this.idGlobalToLocal.keys())
-    ]
 
-    const sorted = [...new Set(allIps)].sort((a, b) => a.localeCompare(b))
-
-    sorted.forEach((global, index) => {
-      const id = index + 1
-      console.log(" Le ip est : "+global+" /le id (X) assginé est "+id)
-      this.idGlobalToPolyOrder.set(global,id)
-    })
-  }
 
 
   protected mapToObj(map: Map<number, number>): { [k: string]: number } {
@@ -575,21 +577,18 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     // Il faudrait adapter ça a mute
     // Par :
     //const collabs = this.collaborators ?? new Map()
-    if (this.idLocalToGlobal.size === 0) {
+    if (this.joinedPeers.length === 0) {
       console.warn('[CausalService] Pas encore de collaborateurs, broadcast ignoré')
       return
     }
     else {
-      console.warn("Il y a plusieurs collab -> "+this.idLocalToGlobal.size)
+      console.warn("Il y a plusieurs collab -> "+this.joinedPeers.length)
     }
-    
-    
     const arrayShard: Uint8Array[] = await split(content, this.nbCollab, (this.nbByz+1))
     const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
     const past = new Map(this.delivered)
-
-    for (const [networkId, _] of this.idLocalToGlobal) {
-      let i = this.idGlobalToPolyOrder.get((this.idLocalToGlobal.get(networkId)!))
+    let i=1
+    for (const id of this.joinedPeers) {
       const shard = arrayShard[i!-1]
       console.log("Le x est -> : "+shard[shard.length-1])
       const replyMsg = new causal.CausalMsg({
@@ -599,23 +598,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         type: causal.CausalType.SHARD,
         shard : shard,
       })
-      this.send(replyMsg, StreamsSubtype.CAUSAL_SHARD as any, networkId)
+      this.send(replyMsg, StreamsSubtype.CAUSAL_SHARD as any, id)
     }
-    //Envoie à soit même
-    let i = this.idGlobalToPolyOrder.get(this.myPeerId)
-    const shard = arrayShard[i!-1]
-    console.log("Le x est -> : "+shard[shard.length-1])
-    const replyMsg = new causal.CausalMsg({
-      mid: { sd: this.myNetworkId, sn: snMid },
-      initialSender: this.myNetworkId,
-      deliveredSd: this.mapToObj(past),
-      type: causal.CausalType.SHARD,
-      shard : shard,
-    })
-
-    this.send(replyMsg, StreamsSubtype.CAUSAL_SHARD as any, this.myNetworkId)
-
-
     await this.waitUntil(() => (this.delivered.get(this.myNetworkId!) ?? 0) >= snMid)
   }
+
+  
 }

@@ -106,7 +106,9 @@ export class CausalBridgeService implements OnDestroy {
       this.sharedMessageOut$,
       myNetworkId$.asObservable(),
       this._fromMuteCoreSubject.asObservable(),
-      myPeerId
+      myPeerId,
+      this.network.onMemberJoin,
+      this.network.onMemberLeave
     )
 
   }

@@ -385,7 +385,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       console.log("----- PAS DE SOLUTION --------")
     }
     if (shardsForPoly != null) {
-      console.log("-----Taille de shard qu'on renvoie pour reconsruire le poly : normalement 2 -> :-----"+shardsForPoly.size)
+      console.warn("-----Taille de shard qu'on renvoie pour reconsruire le poly : normalement 2 -> :-----"+shardsForPoly.size)
       const shardArray = [...shardsForPoly.entries()].map(([, shard]) => shard)
       const encodeContent = await combine(shardArray)
       const decoder = new TextDecoder()
@@ -439,6 +439,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       //C'est notre sortie a la couche au dessus via pub sub
       // causal_deliver m
     }
+    console.warn("---- J'ai déliver ------")
+
     this.delivered.set(sd, sn)
   }
 

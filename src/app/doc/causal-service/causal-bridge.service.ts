@@ -56,7 +56,13 @@ export class CausalBridgeService implements OnDestroy {
     msg.streamId.subtype === StreamsSubtype.DOCUMENT_OPERATION))) {
           console.warn("--- LE CAUSAL RECOIT")
           this.MessageInFromNetworkToCausal$.next(msg)
-        }else{
+        }else if (
+            msg.streamId.type === Streams.DOCUMENT_CONTENT &&
+            (msg.streamId.subtype === StreamsSubtype.DOCUMENT_QUERY || msg.streamId.subtype === StreamsSubtype.DOCUMENT_REPLY)
+          ) {
+            // Bloquer pour tester causal — décommenter pour remettre la sync d'état
+            // this.MessageInFromNetworkToCore$.next(msg)
+          } else {
           this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
         }
           

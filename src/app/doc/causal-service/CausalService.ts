@@ -141,6 +141,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     })
 
     this.messageIn$.subscribe(async ({ senderNetworkId, msg }) => {
+      console.warn("---- Reception dans messageIn$")
       const idSender = senderNetworkId
       const InitialSender = msg.initialSender
       const past = msg.deliveredSd as { [k: string]: number } | null
@@ -152,6 +153,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
       switch (msg.type) {
         case causal.CausalType.SHARD: {
+          console.warn("---- Reception shard")
+
           if (idSender != mid?.sd && (past?.[String(idSender)] ?? 0) + 1 == mid!.sd
             || this.hasInRegister(this.shardRegister, key, idSender)) { return }
           this.addToRegister(this.shardRegister, key, idSender)
@@ -212,6 +215,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         }
 
         case causal.CausalType.REVEAL: {
+          console.warn("---- Reception reveal")
+
           if (this.hasInRegister(this.revealRegister, key, idSender)) { return }
           this.addToRegister(this.revealRegister, key, idSender)
 
@@ -239,6 +244,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
         //Je réceptionne les Attest
         case causal.CausalType.ATTEST: {
+          console.warn("---- Reception attest")
+
           if (this.hasInRegister(this.attestRegister, key, idSender)) { return }
           this.addToRegister(this.attestRegister, key, idSender)
           const prevAttest = this.getCountFromMap(this.attest, key)
@@ -248,6 +255,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
         //Je réceptionne les confirm
         case causal.CausalType.CONFIRM: {
+          console.warn("---- Reception confirm")
+
           if (this.hasInRegister(this.confirmRegister, key, idSender)) { return }
           this.addToRegister(this.confirmRegister, key, idSender)
           const prevConfirm = this.getCountFromMap(this.confirm, key)
@@ -256,6 +265,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         }
 
         case causal.CausalType.WITNESS: {
+          console.warn("---- Reception witness")
           if (this.hasInRegister(this.witnessRegister, key, idSender)) { return }
           this.addToRegister(this.witnessRegister, key, idSender)
           this.setWitnessContent(mid!.sd!, mid!.sn!, idSender, content!)
@@ -550,12 +560,6 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   //On le reçoit déjà encodé
   async causal_broadcast(content: Uint8Array) {
     console.warn('--- Rentre dans causalBroadcast')
-
-    //todo
-    //On est partit du principe qu'on avait toutes les address ip dans une map idToIp
-    // Il faudrait adapter ça a mute
-    // Par :
-    //const collabs = this.collaborators ?? new Map()
     if (this.joinedPeers.length === 0) {
       console.warn('[CausalService] Pas encore de collaborateurs, broadcast ignoré')
       return
@@ -566,9 +570,9 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     const arrayShard: Uint8Array[] = await split(content, this.nbCollab, (this.nbByz+1))
     const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
     const past = new Map(this.delivered)
-    let i=1
+    let i=0
     for (const id of this.joinedPeers) {
-      const shard = arrayShard[i!-1]
+      const shard = arrayShard[i]
       console.log("Le x est -> : "+shard[shard.length-1])
       const replyMsg = new causal.CausalMsg({
         mid: { sd: this.myNetworkId, sn: snMid },
@@ -578,6 +582,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         shard : shard,
       })
       this.send(replyMsg, StreamsSubtype.CAUSAL_SHARD as any, id)
+      i+=1
     }
     await this.waitUntil(() => (this.delivered.get(this.myNetworkId!) ?? 0) >= snMid)
   }

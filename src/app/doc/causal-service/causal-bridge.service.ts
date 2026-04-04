@@ -130,18 +130,14 @@ export class CausalBridgeService implements OnDestroy {
         //Ici doit juste changer le type du stream en Document_content et le type du message
         filter((causalMsg: any) => !!causalMsg?.content),
         map((causalMsg: any) => {
-          try {
-            const delivered = JSON.parse(causalMsg.content) as any;
-            console.log(`[CausalBridge] Message 402 livré causalement, sender=${delivered.senderNetworkId}`);
-            return {
-              senderNetworkId: delivered.senderNetworkId,
-              streamId: delivered.streamId,
-              content: new Uint8Array(delivered.content),
-            };
-          } catch (e) {
-            console.error('[CausalBridge] Erreur désérialisation deliver', e);
-            return null;
-          }
+          return {
+            senderNetworkId: causalMsg.initialSender,
+            streamId: { 
+              type: MuteCoreStream.DOCUMENT_CONTENT, 
+              subtype: MuteCoreStreamsSubType.DOCUMENT_OPERATION 
+            },
+            content: causalMsg.content as Uint8Array,
+          } as unknown as MuteCoreMessageIn;
         }),
         filter((msg: any) => msg !== null)
       )

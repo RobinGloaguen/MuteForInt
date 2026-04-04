@@ -57,7 +57,7 @@ export const defaultEnvironment: IEnvironment = {
   },
 
   cryptography: {
-    type: EncryptionType.NONE, //Avant   type: EncryptionType.METADATA,
+    type: EncryptionType.METADATA, //Avant   type: EncryptionType.METADATA,
     // coniksClient: {
     //   url: 'https://localhost:3001', // Coniks clinet URL (must be a localhost)
     //   binaries: {

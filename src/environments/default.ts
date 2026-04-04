@@ -3,7 +3,24 @@ import { EncryptionType } from '@app/core/crypto/EncryptionType.model'
 import { networkSolution } from '@app/doc/network/solutions/networkSolution'
 import { IEnvironment, NetfluxLogLevel } from './IEnvironment.model'
 
-const host = 'localhost' // FIXME: interpolation at build time required
+
+const hostname = window.location.hostname
+const isCodespace = hostname.endsWith('.app.github.dev')
+
+// Sur codespace : potential-goldfish-xxx-4200.app.github.dev
+// On remplace le port 4200 par 8010
+const signalingHost = isCodespace
+  ? hostname.replace('-4200.', '-8010.')
+  : 'localhost'
+
+const signalingServer = isCodespace
+  ? `/dns4/${signalingHost}/tcp/443/wss/p2p-webrtc-star/`
+  : `/dns4/localhost/tcp/8010/ws/p2p-webrtc-star/`
+
+const signalingServerTestAddr = isCodespace
+  ? `https://${signalingHost}`
+  : `http://localhost:8010`
+
 
 export const defaultEnvironment: IEnvironment = {
   production: false,
@@ -21,7 +38,7 @@ export const defaultEnvironment: IEnvironment = {
     },
   },
 
-  p2p: {
+   p2p: {
     rtcConfiguration: {
       iceServers: [
         {
@@ -33,8 +50,8 @@ export const defaultEnvironment: IEnvironment = {
       ],
     },
     //libp2p value
-    signalingServer: `/dns4/${host}/tcp/8010/ws/p2p-webrtc-star/`,
-    signalingServerTestAddr: `http://${host}:8010`,
+    signalingServer: signalingServer,
+    signalingServerTestAddr: signalingServerTestAddr,
     //netflux value
     //signalingServer: `ws://localhost:8010`,
   },

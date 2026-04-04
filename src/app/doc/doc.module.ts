@@ -11,6 +11,7 @@ import { ResolverDialogComponent } from './resolver-dialog/resolver-dialog.compo
 import { RightSideModule } from './right-side'
 import { SyncComponent } from './toolbar/sync/sync.component'
 import { ToolbarComponent } from './toolbar/toolbar.component'
+import { CausalBridgeService } from './causal-service/causal-bridge.service'
 
 @NgModule({
   imports: [SharedModule, RightSideModule, RouterModule],

@@ -66,7 +66,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   private witnessContent : Map<string, Map<number, string>>
 
   private suspected : Set<number>
-  public deliverSubject: Subject<causal.ICausalMsg>
+  public deliverSubject: Subject<{ senderNetworkId: number, content: Uint8Array }>
   public fifoBroadcastSubject : Subject<causal.ICausalMsg>
   public messageFromMuteCore$ : Observable<Uint8Array>
   public myPeerId : string
@@ -444,9 +444,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       //Rajout pour le test
       const shardArray = this.getShardsForMessage(sd, sn) //ajout
       const encodeContent = await combine(shardArray) //ajout
-      const decoder = new TextDecoder() //ajout
-      const content = decoder.decode(encodeContent) //ajout
-      this.deliverSubject.next(new causal.CausalMsg({ mid : {sd, sn}, initialSender: sd, type: causal.CausalType.DELIVER, content }))
+    
+      this.deliverSubject.next({ senderNetworkId: sd, content: encodeContent })
       console.warn("---- J'ai déliver c'était différent de null------")
       //todo
       //C'est notre sortie a la couche au dessus via pub sub

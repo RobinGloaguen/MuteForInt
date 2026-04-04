@@ -108,21 +108,20 @@ export class CausalBridgeService implements OnDestroy {
       //      this.deliverSubject.next(new causal.CausalMsg({ mid : {sd, sn}, initialSender: sd, type: causal.CausalType.DELIVER, content }))
 
       this.causalService!.deliverSubject.pipe(
-        //Ici doit juste changer le type du stream en Document_content et le type du message
-        filter((causalMsg: any) => !!causalMsg?.content),
-        map((causalMsg: any) => {
-          return {
-            senderNetworkId: causalMsg.initialSender,
-            streamId: { 
-              type: MuteCoreStream.DOCUMENT_CONTENT, 
-              subtype: MuteCoreStreamsSubType.DOCUMENT_OPERATION 
-            },
-            content: causalMsg.content as Uint8Array,
-          } as unknown as MuteCoreMessageIn;
-        }),
-        filter((msg: any) => msg !== null)
-      )
-    );
+          filter((msg) => !!msg?.content),
+          map((msg) => {
+            return {
+              senderNetworkId: msg.senderNetworkId,
+              streamId: { 
+                type: MuteCoreStream.DOCUMENT_CONTENT, 
+                subtype: MuteCoreStreamsSubType.DOCUMENT_OPERATION 
+              },
+              content: msg.content,
+            } as unknown as MuteCoreMessageIn
+          }),
+          filter((msg: any) => msg !== null)
+        ))
+
   }
 
   setMuteCoreMessageOut(source: Observable<any>): void {

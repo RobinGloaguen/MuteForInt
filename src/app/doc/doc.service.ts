@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Injectable, NgZone, OnDestroy } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { merge, Observable, Subject, Subscription } from 'rxjs'
-import { auditTime, filter, map } from 'rxjs/operators'
+import { auditTime, filter, map ,take} from 'rxjs/operators'
 
 import {
   ICollaborator,
@@ -179,7 +179,8 @@ export class DocService implements OnDestroy {
       )
     })
     //Création du causalBridge
-    this.causalBridge.init(this.network.myNetworkId, "FAUXpeerId")
+    const myNetworkId = await this.network.solution.myNetworkId.pipe(take(1)).toPromise()
+    this.causalBridge.init(myNetworkId, "FAUXpeerId")
     // Link message stream between Network and MuteCore
     this.muteCore.messageIn$ = this.causalBridge.messageInForMuteCore
     this.causalBridge.setMuteCoreMessageOut(this.muteCore.messageOut$)

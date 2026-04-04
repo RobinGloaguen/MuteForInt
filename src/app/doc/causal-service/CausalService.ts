@@ -448,9 +448,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       //todo
       //C'est notre sortie a la couche au dessus via pub sub
       // causal_deliver m
+    } else{
+      console.warn("---- J'ai déliver c'était null------")
     }
-    console.warn("---- J'ai déliver c'était null------")
-
+  
     this.delivered.set(sd, sn)
   }
 

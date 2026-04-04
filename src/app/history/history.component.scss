@@ -1,0 +1,65 @@
+$break-small: 500px;
+$break-large: 1200px;
+$padding-left-right: 2%;
+
+:host {
+  flex: 1;
+  overflow: none;
+}
+
+// TODO - Some changes needs to be done to these items once History is back as a working feature
+mat-card {
+  @media screen and (max-width: $break-small) {
+    width: 95%;
+    margin: 10px auto;
+  }
+  margin: 20px;
+  display: inline-block;
+  cursor: text;
+}
+
+.matContent {
+  padding-bottom: 2px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+mat-sidenav-container {
+  height: 100%;
+
+  .leftsidenav {
+    min-width: 250px;
+  }
+
+  .rightsidenav {
+    max-width: 32rem;
+    padding: 10px;
+  }
+
+  @keyframes slidein {
+    from {
+      letter-spacing: -10px;
+      opacity: 0;
+    }
+
+    to {
+      letter-spacing: normal;
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideout {
+    from {
+      font-size: 100%;
+      opacity: 1;
+    }
+
+    to {
+      font-size: 0%;
+      opacity: 0;
+    }
+  }
+}

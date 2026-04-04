@@ -1,0 +1,9 @@
+# This file is currently used by autoprefixer to adjust CSS to support the below specified browsers
+# For additional information regarding the format and rule options, please see:
+# https://github.com/browserslist/browserslist#queries
+
+
+# see effective coverage in https://browsersl.ist/#q=cover+99.5%25+in+alt-EU+and+%3E+0.5%25+and+not+dead%2CFirefox+ESR%2Cnot+op_mini+all
+cover 99.5% in alt-EU and > 0.5% and not dead
+Firefox ESR
+not op_mini all

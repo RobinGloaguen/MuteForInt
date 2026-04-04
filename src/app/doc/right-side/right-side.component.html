@@ -1,0 +1,20 @@
+<div class="container">
+  <mat-tab-group>
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <div class="tab-header">Details</div>
+      </ng-template>
+      <ng-template matTabContent>
+        <mute-details [doc]="doc" [collaborators]="collabService.collaborators"></mute-details>
+      </ng-template>
+    </mat-tab>
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <div class="tab-header">Syntax</div>
+      </ng-template>
+      <ng-template matTabContent>
+        <mute-markdown-cheatsheet class="cheatsheet-tab"></mute-markdown-cheatsheet>
+      </ng-template>
+    </mat-tab>
+  </mat-tab-group>
+</div>

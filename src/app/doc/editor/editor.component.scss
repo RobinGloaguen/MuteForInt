@@ -1,0 +1,14 @@
+:host {
+  height: 100%;
+  box-sizing: border-box;
+  display: block;
+}
+
+mat-card {
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  margin: 0 auto;
+  flex-basis: 100%;
+}

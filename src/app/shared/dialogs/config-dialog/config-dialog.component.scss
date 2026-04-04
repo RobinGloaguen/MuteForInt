@@ -1,0 +1,42 @@
+.anonymous-icon-big {
+  font-size: 100px;
+  height: 100px;
+  width: 100px;
+}
+
+.icon-github:before {
+  content: '\f092';
+}
+
+.circle {
+  border-radius: 50% 50%;
+  display: inline-block;
+  height: 24px;
+  width: 24px;
+  vertical-align: middle;
+  margin-right: 5px;
+
+  &.default {
+    background-color: var(--default-primary) !important;
+  }
+
+  &.dark {
+    background-color: var(--dark-primary) !important;
+  }
+
+  &.indigo {
+    background-color: var(--indigo-primary) !important;
+  }
+}
+
+.logs {
+  padding-bottom: 20px;
+}
+
+mat-form-field {
+  width: 100%;
+
+  input {
+    margin-top: 0.3rem;
+  }
+}

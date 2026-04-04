@@ -1,0 +1,200 @@
+@use '@angular/material' as mat;
+
+// Do not let Angular material font override our configuration.
+$my-typography: mat.define-typography-config();
+@include mat.typography-hierarchy($my-typography);
+
+/* roboto-300 - latin */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Roboto Light'), local('Roboto-Light'), url('/assets/fonts/roboto-v18-latin-300.woff2') format('woff2'); /* Chrome 26+, Opera 23+, Firefox 39+ */
+}
+
+/* roboto-regular - latin */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Roboto'), local('Roboto-Regular'), url('/assets/fonts/roboto-v18-latin-regular.woff2') format('woff2'); /* Chrome 26+, Opera 23+, Firefox 39+ */
+}
+/* roboto-500 - latin */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  src: local('Roboto Medium'), local('Roboto-Medium'), url('/assets/fonts/roboto-v18-latin-500.woff2') format('woff2'); /* Chrome 26+, Opera 23+, Firefox 39+ */
+}
+
+/* montserrat-300 - cyrillic-ext_cyrillic_vietnamese_latin_latin-ext */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Montserrat Light'), local('Montserrat-Light'),
+    url('/assets/fonts/montserrat-v12-cyrillic-ext_cyrillic_vietnamese_latin_latin-ext-300.woff2') format('woff2');
+}
+/* montserrat-300italic - cyrillic-ext_cyrillic_vietnamese_latin_latin-ext */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: italic;
+  font-weight: 300;
+  src: local('Montserrat Light Italic'), local('Montserrat-LightItalic'),
+    url('/assets/fonts/montserrat-v12-cyrillic-ext_cyrillic_vietnamese_latin_latin-ext-300italic.woff2') format('woff2');
+}
+/* montserrat-regular - cyrillic-ext_cyrillic_vietnamese_latin_latin-ext */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Montserrat Regular'), local('Montserrat-Regular'),
+    url('/assets/fonts/montserrat-v12-cyrillic-ext_cyrillic_vietnamese_latin_latin-ext-regular.woff2') format('woff2');
+}
+/* montserrat-italic - cyrillic-ext_cyrillic_vietnamese_latin_latin-ext */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: italic;
+  font-weight: 400;
+  src: local('Montserrat Italic'), local('Montserrat-Italic'),
+    url('/assets/fonts/montserrat-v12-cyrillic-ext_cyrillic_vietnamese_latin_latin-ext-italic.woff2') format('woff2');
+}
+/* montserrat-600 - cyrillic-ext_cyrillic_vietnamese_latin_latin-ext */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 600;
+  src: local('Montserrat SemiBold'), local('Montserrat-SemiBold'),
+    url('/assets/fonts/montserrat-v12-cyrillic-ext_cyrillic_vietnamese_latin_latin-ext-600.woff2') format('woff2');
+}
+/* montserrat-600italic - cyrillic-ext_cyrillic_vietnamese_latin_latin-ext */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: italic;
+  font-weight: 600;
+  src: local('Montserrat SemiBold Italic'), local('Montserrat-SemiBoldItalic'),
+    url('/assets/fonts/montserrat-v12-cyrillic-ext_cyrillic_vietnamese_latin_latin-ext-600italic.woff2') format('woff2');
+}
+
+// using https://marella.me/material-icons/demo/
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Material Icons'), local('material-icon'), url('../../node_modules/material-icons/iconfont/material-icons.woff2') format('woff2');
+}
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px; /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@font-face {
+  font-family: 'fontello';
+  font-weight: normal;
+  font-style: normal;
+  src: url('/assets/fonts/fontello.woff2') format('woff2');
+}
+
+/* Chrome hack: SVG is rendered more smooth in Windozze. 100% magic, uncomment if you need it. */
+/* Note, that will break hinting! In other OS-es font will be not as sharp as it could be */
+/*
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+  @font-face {
+    font-family: 'fontello';
+    src: url('../font/fontello.svg?92845591#fontello') format('svg');
+  }
+}
+*/
+
+[class^='icon-']:before,
+[class*=' icon-']:before {
+  font-family: 'fontello';
+  font-style: normal;
+  font-weight: normal;
+
+  display: inline-block;
+  text-decoration: inherit;
+  width: 1em;
+  margin-right: 0.2em;
+  text-align: center;
+  /* opacity: .8; */
+
+  /* For safety - reset parent styles, that can break glyph codes*/
+  font-variant: normal;
+  text-transform: none;
+
+  /* fix buttons height, for twitter bootstrap */
+  line-height: 1em;
+
+  /* Animation center compensation - margins should be symmetric */
+  /* remove if not needed */
+  margin-left: 0.2em;
+
+  /* you can be more comfortable with increased icons size */
+  font-size: 120%;
+
+  /* Font smoothing. That was taken from TWBS */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Uncomment for 3D effect */
+  /* text-shadow: 1px 1px 1px rgba(127, 127, 127, 0.3); */
+}
+
+.icon-github-circled:before {
+  content: '\f09b';
+} /* '' */
+.icon-google:before {
+  content: '\f1a0';
+} /* '' */
+
+.mat-subtitle-1, .mat-body-2, .mat-caption{
+  color: var(--theme-fg-text);
+}
+
+// Restore default grey color for icons
+.mat-mdc-menu-item .mat-icon-no-color, .mat-mdc-menu-submenu-icon {
+  color: var(--mdc-theme-text-primary-on-background, rgba(0, 0, 0, 0.54));
+}
+
+.mat-mdc-header-cell {
+  color: rgba(0, 0, 0, 0.54);
+}
+
+.mdc-button .mdc-button__label {
+  font-weight: 500;
+}
+
+.mat-mdc-dialog-container .mdc-dialog__title {
+  font: 500 20px / 32px Roboto, "Helvetica Neue", sans-serif !important;
+}
+
+
+.mdc-list-item__primary-text {
+  font: 400 14px Roboto, "Helvetica Neue", sans-serif !important;
+}
+
+h2.mat-subheading-2 {
+  font: 500 16px / 28px Roboto, "Helvetica Neue", sans-serif;
+}
+
+
+

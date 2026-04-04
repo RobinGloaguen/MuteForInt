@@ -1,0 +1,164 @@
+@import '@angular/material/theming';
+@include mat-core();
+
+@mixin define-theme-css-variables($theme, $prefix: 'default') {
+  :root {
+    $primary: map-get($theme, primary);
+    $accent: map-get($theme, accent);
+    $warn: map-get($theme, warn);
+    --#{$prefix}-primary: #{mat-color($primary)};
+    --#{$prefix}-accent: #{mat-color($accent)};
+    --#{$prefix}-warn: #{mat-color($warn)};
+
+    // BACKGROUND
+    $bg: map-get($theme, background);
+
+    // bars
+    --#{$prefix}-bg-status-bar: #{map-get($bg, status-bar)};
+    --#{$prefix}-bg-app-bar:#{map-get($bg, app-bar)};
+
+    // background
+    --#{$prefix}-bg-background: #{map-get($bg, background)};
+
+    // hover
+    --#{$prefix}-bg-hover: #{map-get($bg, hover)};
+
+    // dialog
+    --#{$prefix}-bg-dialog: #{map-get($bg, dialog)};
+
+    // buttons
+    --#{$prefix}-bg-disabled-button: #{map-get($bg, disabled-button)};
+    --#{$prefix}-bg-raised-button: #{map-get($bg, raised-button)};
+    --#{$prefix}-bg-focused-button: #{map-get($bg, focused-button)};
+    --#{$prefix}-bg-selected-button: #{map-get($bg, selected-button)};
+    --#{$prefix}-bg-selected-disabled-button: #{map-get($bg, selected-disabled-button)};
+
+    // unselected-chip
+    --#{$prefix}-bg-unselected-chip: #{map-get($bg, unselected-chip)};
+
+    // card
+    --#{$prefix}-bg-card:#{map-get($bg, card)};
+
+    // disabled-list-option
+    --#{$prefix}-bg-disabled-list-option: #{map-get($bg, disabled-list-option)};
+
+    // FOREGROUND
+    $fg: map-get($theme, foreground);
+
+    // text
+    --#{$prefix}-fg-text: #{map-get($fg, text)};
+    --#{$prefix}-fg-secondary-text: #{map-get($fg, secondary-text)};
+    --#{$prefix}-fg-hint-text: #{map-get($fg, hint-text)};
+
+    // divider
+    --#{$prefix}-fg-divider: #{map-get($fg, divider)};
+    --#{$prefix}-fg-dividers:#{map-get($fg, dividers)};
+
+    // disabled
+    --#{$prefix}-fg-disabled: #{map-get($fg, disabled)};
+    --#{$prefix}-fg-disabled-button: #{map-get($fg, disabled-button)};
+
+    // icons
+    //--#{$prefix}-fg-icons:#{map-get($fg, hint-icons)};
+
+    // slider
+    //--#{$prefix}-fg-slider-min:#{map-get($fg, hint-slider-min)};
+    //--#{$prefix}-fg-slider-off:#{map-get($fg, hint-slider-off)};
+  }
+}
+
+//###########################################################
+// DEFAULT theme
+//###########################################################
+$theme: mat-light-theme(mat-palette($mat-light-blue, 600, 200, 800), mat-palette($mat-amber, A400, A700));
+
+@include define-theme-css-variables($theme);
+@include angular-material-theme($theme);
+
+//###########################################################
+// DARK theme
+//###########################################################
+$theme: mat-dark-theme(mat-palette($mat-pink), mat-palette($mat-blue-grey));
+$prefix: 'dark';
+
+@include define-theme-css-variables($theme, $prefix);
+.#{$prefix}-theme {
+  @include angular-material-theme($theme);
+}
+
+//###########################################################
+// INDIGO theme
+//###########################################################
+$theme: mat-light-theme(mat-palette($mat-indigo, 400), mat-palette($mat-yellow, A700));
+$prefix: 'indigo';
+
+@include define-theme-css-variables($theme, $prefix);
+.#{$prefix}-theme {
+  @include angular-material-theme($theme);
+}
+
+//###########################################################
+// Global CSS variables set to default theme by default
+//###########################################################
+@mixin define-global-css-variables($prefix: 'default') {
+  :root {
+    --theme-primary: var(--#{$prefix}-primary);
+    --theme-accent: var(--#{$prefix}-accent);
+    --theme-warn: var(--#{$prefix}-warn);
+
+    --theme-bg-card: var(--#{$prefix}-bg-card);
+    --theme-bg-background: var(--#{$prefix}-bg-background);
+
+    // BACKGROUND
+    // bars
+    --theme-bg-status-bar: var(--#{$prefix}-bg-status-bar);
+    --theme-bg-app-bar: var(--#{$prefix}-bg-app-bar);
+
+    // background
+    --theme-bg-background: var(--#{$prefix}-bg-background);
+
+    // hover
+    --theme-bg-hover: var(--#{$prefix}-bg-hover);
+
+    // dialog
+    --theme-bg-dialog: var(--#{$prefix}-bg-dialog);
+
+    // buttons
+    --theme-bg-disabled-button: var(--#{$prefix}-bg-disabled-button);
+    --theme-bg-raised-button: var(--#{$prefix}-bg-raised-button);
+    --theme-bg-focused-button: var(--#{$prefix}-bg-focused-button);
+    --theme-bg-selected-button: var(--#{$prefix}-bg-selected-button);
+    --theme-bg-selected-disabled-button: var(--#{$prefix}-bg-selected-disabled-button);
+
+    // unselected-chip
+    --theme-bg-unselected-chip: var(--#{$prefix}-bg-unselected-chip);
+
+    // card
+    --theme-bg-card: var(--#{$prefix}-bg-card);
+
+    // disabled-list-option
+    --theme-bg-disabled-list-option: var(--#{$prefix}-bg-disabled-list-option);
+
+    // FOREGROUND
+    // text
+    --theme-fg-text: var(--#{$prefix}-fg-text);
+    --theme-fg-secondary-text: var(--#{$prefix}-fg-secondary-text);
+    --theme-fg-hint-text: var(--#{$prefix}-fg-hint-text);
+
+    // divider
+    --theme-fg-divider: var(--#{$prefix}-fg-divider);
+    --theme-fg-dividers: var(--#{$prefix}-fg-dividers);
+
+    // disabled
+    --theme-fg-disabled: var(--#{$prefix}-fg-disabled);
+    --theme-fg-disabled-button: var(--#{$prefix}-fg-disabled-button);
+
+    // icons
+    --theme-fg-icons: var(--#{$prefix}-fg-icons);
+
+    // slider
+    --theme-fg-slider-min: var(--#{$prefix}-fg-slider-min);
+    --theme-fg-slider-off: var(--#{$prefix}-fg-slider-off);
+  }
+}
+@include define-global-css-variables('default');

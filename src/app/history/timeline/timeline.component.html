@@ -1,0 +1,8 @@
+<div class="w-full flex flex-row">
+  <mat-slider thumbLabel
+  [min]="0" [max]="nbOperations" 
+  [step]="step" discrete>
+    <input matSliderThumb (valueChange)="updateOperation($event)"/>
+  </mat-slider>
+</div>
+  

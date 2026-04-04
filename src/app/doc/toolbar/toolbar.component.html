@@ -1,0 +1,86 @@
+<mat-toolbar color="primary" class="mat-elevation-z6 h-16">
+
+  <div class="flex flex-row w-full h-full justify-between align-center">
+
+      <div class="flex flex-row items-center">
+          <button mat-icon-button routerLink="/">
+            <mat-icon class="align-top">home</mat-icon>
+          </button>
+        
+        <mat-form-field class="mat-mdc-form-field-override w-[250px] max-[640px]:w-[140px] ">
+          <input #input matInput [value]="doc.title" (keydown)="updateTitle($event)" (blur)="updateTitle($event)"
+            (focus)="selectTitle()" />
+        </mat-form-field>
+      </div>
+
+      <div class="flex flex-row justify-end items-center">
+        <mute-sync class="pr-[0.5rem]"></mute-sync>
+        <button mat-icon-button [matMenuTriggerFor]="docMenu">
+          <mat-icon class="align-top">more_vert</mat-icon>
+        </button>
+        <mute-profile class="pl-[0.5rem]"></mute-profile>
+      </div>
+  </div>
+</mat-toolbar>
+
+<mat-menu #docMenu="matMenu" overlapTrigger="false">
+  <button mat-menu-item (click)="info.emit()">
+    <mat-icon>info</mat-icon>
+    Toggle details
+  </button>
+  <button disabled mat-menu-item [routerLink]="['/', doc.signalingKey, '/history']">
+    <mat-icon>history</mat-icon>
+    Version history
+  </button>
+  <button mat-menu-item (click)="inviteBot()" [disabled]="botNotAvailable" *ngIf="environment.botStorage">
+    <mat-icon>cloud</mat-icon>
+    Invite bot storage
+  </button>
+  <div *ngIf="isConnected" >
+    <button mat-menu-item  (click)="leaveNetwork()">
+      <mat-icon>clear</mat-icon>
+      Leave the network
+    </button>
+  </div>
+  <div *ngIf="!isConnected">
+    <button mat-menu-item  (click)="rejoinNetwork()">
+      <mat-icon>loop</mat-icon>
+      Join the network
+    </button>
+  </div>
+  <!--FIXME: *ngIf didn't work here, fxShow doesn't work with ng-container-->
+  <mat-divider fxShow="debug === true"></mat-divider>
+  <button fxShow="debug === true" mat-menu-item [matMenuTriggerFor]="debug">
+    <mat-icon>bug_report</mat-icon>
+    Debug
+  </button>
+</mat-menu>
+
+<mat-menu #debug="matMenu">
+  <div (click)="stopPropagation($event)">
+    <button mat-menu-item (click)="downloadMuteLog()">Download MUTE logs</button>
+    <button mat-menu-item (click)="downloadDocLog()">Download doc logs</button>
+    <button mat-menu-item (click)="downloadDocTree()">Download doc tree</button>
+    <div *ngIf="environment.network === networkSolution.NETFLUX" class="logs">
+      <mat-divider></mat-divider>
+      <mat-form-field class="log-slider netflux-log">
+        <mat-select (selectionChange)="updateNetfluxLog()" [(value)]="netfluxLog" placeholder="Netflux log levels"
+          multiple>
+          <mat-option [value]="LogLevel.DEBUG">Debug</mat-option>
+          <mat-option [value]="LogLevel.CHANNEL">Channel</mat-option>
+          <mat-option [value]="LogLevel.SIGNALING">Signaling</mat-option>
+          <mat-option [value]="LogLevel.WEB_GROUP">Web Group</mat-option>
+          <mat-option [value]="LogLevel.WEBRTC">WebRTC</mat-option>
+          <mat-option [value]="LogLevel.CHANNEL_BUILDER">Channel Builder</mat-option>
+          <mat-option [value]="LogLevel.TOPOLOGY">Topology</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-slide-toggle (change)="updateCryptoLog()" [(ngModel)]="cryptoLog" class="log-slider">Cryptography logs
+      </mat-slide-toggle><br />
+      <mat-slide-toggle (change)="updateDocLog()" [(ngModel)]="docLog" class="log-slider">Document logs
+      </mat-slide-toggle><br />
+    </div>
+  </div>
+</mat-menu>
+
+<a #debugDownload class="debug-download"></a>

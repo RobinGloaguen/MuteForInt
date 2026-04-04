@@ -1,0 +1,2 @@
+export * from './doc.component'
+export * from './doc.module'

@@ -1,0 +1,25 @@
+syntax = "proto3";
+package causal;
+enum CausalType {
+  ATTEST      = 0;
+  REVEAL      = 1;
+  WITNESS     = 2;
+  SHARD     = 3;
+  CONFIRM = 4;
+  DELIVER = 5;
+}
+
+message MsgId {
+  int32 sd = 1;  // sender id
+  int32 sn = 2;  // sequence number
+}
+
+message CausalMsg {
+  MsgId mid = 1;  // ⟨sd, sn⟩
+  int32 initialSender = 2;
+  map<int32, int32> deliveredSd = 3; // sd → sn
+  CausalType type = 4;
+  bytes shard = 5;
+  map<int32, int32> confirmed = 6; // sd → sn
+  string content = 7;
+}

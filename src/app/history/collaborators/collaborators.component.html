@@ -1,0 +1,25 @@
+<mat-card appearance="outlined" class="rightSide flex flex-col">
+  <div class="slider pl-[5px] pt-[5px]">
+    Authors
+    <mat-slide-toggle #displayMode (change)="onChange($event)"></mat-slide-toggle>  
+    Add/Del
+  </div>
+
+
+  <mat-list dense *ngIf="displayMode.checked">
+    <mat-list-item [style.background-color] = "'#4CAF50'">
+      Addition
+    </mat-list-item>
+    <mat-list-item [style.background-color] = "'#E57373'">
+      Deletion
+    </mat-list-item>
+  </mat-list>
+
+  <mat-list dense *ngIf="!displayMode.checked">
+    <mat-list-item *ngFor="let author of docAuthors" [style.background-color] = "author.getColor()">
+      {{ author.authorName }}
+    </mat-list-item>
+  </mat-list>
+
+
+</mat-card>

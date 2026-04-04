@@ -1,0 +1,26 @@
+<div class="controls-buttons">
+  
+  <div class="flex flex-row">
+    <button mat-mini-fab (click)="onClickFastRewind()">
+      <mat-icon>fast_rewind</mat-icon>
+    </button>
+    <button mat-mini-fab (click)="onClickPlay()">
+      <mat-icon>{{ pausePlayBtn }}</mat-icon>
+    </button>
+    <button mat-mini-fab (click)="onClickFastForward()">
+      <mat-icon>fast_forward</mat-icon>
+    </button>
+    <mat-slider [max]="max" [step]="1" [min]="1" discrete>
+      <input matSliderThumb (valueChange)="updateStep($event)"/>
+    </mat-slider>
+  </div>
+  
+  
+  <button
+  class="justify-end whitespace-nowrap"
+      mat-raised-button
+      color="accent"
+      (click)='showEditor()'>
+      Back to edition
+  </button>
+</div>

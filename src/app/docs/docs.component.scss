@@ -1,0 +1,161 @@
+:host {
+  flex: 1;
+  overflow:hidden;
+}
+
+.mat-subimage {
+  place-self: center;
+  opacity: .6;
+  transform: scale(6);
+  margin-bottom:3.5rem;
+  cursor: default;
+}
+
+.mat-subtitle {
+  margin-bottom: 1rem;
+  cursor: default;
+}
+
+.mat-column-title {
+  flex: 1 1 auto;
+  padding-left: 1rem;
+  overflow:hidden;
+}
+
+.mat-column-created {
+  flex: 0 0 150px;
+  padding: 0 0;
+}
+
+.mat-column-opened {
+  flex: 0 0 150px;
+  padding: 0 0;
+}
+
+.mat-column-modified {
+  flex: 0 0 100px;
+  padding: 0 0;
+}
+
+.mat-column-more {
+  flex: 0 0 60px;
+  padding: 0 0;
+}
+
+mat-header-cell.mat-sort-header {
+  font-size: small;
+  font-weight: 500;
+}
+
+.mat-mdc-table {
+  overflow: hidden;
+
+  .mat-mdc-cell {
+    text-overflow: ellipsis;
+    overflow: hidden;
+
+    &.title-cell {
+      padding-left: 0;
+      font-weight: 500;
+    }
+
+    .key {
+      margin-left: 10px;
+      opacity: .2;
+      width: 90px;
+      word-wrap: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .mat-mdc-row {
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--theme-bg-hover);
+    }
+  }
+
+  .title-icon {
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  .synchronized-icon {
+    vertical-align: middle;
+    margin-right: 5px;
+  }
+}
+
+.mobile {
+  .mat-mdc-row {
+    padding: 0;
+  }
+}
+
+.nav {
+  border-right: 1px solid var(--theme-fg-divider);
+}
+
+.contenteditable {
+  padding: 4px;
+
+  &:active,
+  &:focus {
+    outline-width: 1px;
+    outline-color: var(--theme-accent);
+  }
+}
+
+// hover on lines, not on buttons
+/* TODO(mdc-migration): The following rule targets internal classes of button that may no longer apply for the MDC version.*/
+::ng-deep .mat-mdc-button:hover:not(.mat-button-disabled) > .mat-button-focus-overlay {
+	opacity: 0 !important;
+}
+// end hover tweaks
+
+.table-container {
+  height: 100%;
+  margin: auto;
+}
+
+.info-values {
+  font-weight: 700;
+}
+
+.table-container-mobile {
+  height: 100%;
+}
+
+.noDoc {
+  display: flex;
+  flex-direction: column;
+  padding-top: 8rem;
+  text-align: center;
+  overflow: hidden;
+  align-items: center;
+  height: max-content;
+}
+
+mat-sidenav-container {
+  height: 100%;
+
+  mat-sidenav {
+    min-width: 250px;
+  }
+
+  .rightsidenav {
+    .divider {
+      border: 0;
+      height: 1px;
+      width: 100%;
+      margin: 1rem 0 2rem 0;
+    }
+
+    .content {
+      margin-top: 30px;
+    }
+  }
+}

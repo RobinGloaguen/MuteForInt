@@ -1,0 +1,12 @@
+syntax = "proto3";
+import "../../../../../node_modules/@coast-team/mute-core/dist/proto/sync.proto";
+
+message Cursor {
+  Position anchor = 1;
+  Position head = 2;
+}
+
+message Position {
+  sync.IdentifierMsg id = 1;
+  int32 index = 2;
+}

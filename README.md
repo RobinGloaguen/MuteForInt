@@ -1,4 +1,5 @@
 # Ce qu'il y à faire
+# J'ai fait expres d'ignorer les autre substream de document_content car ça envoyait tout le document sans passer par causal
 
 Le protocole fonctionne ! On voit bien `---- J'ai déliver c'était différent de null------` sur les deux machines. Mais seul le "c" est reçu, pas les "d".
 

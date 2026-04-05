@@ -167,6 +167,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
 
           await this.waitUntil(() => {
+            console.warn("---Bloqué dans le wait qui controle le past ----")
             const entries = Object.entries(past!)
             return entries.every(([k, v]) => (this.delivered.get(Number(k)) ?? 0) >= v)
           })
@@ -224,6 +225,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
           this.addToRegister(this.revealRegister, key, idSender)
 
           await this.waitUntil(() => {
+            console.warn("--Bloqué dans le wait qui controle le reaveal--")
             const entries = Object.entries(past!)
             return entries.every(([k, v]) => {
               const kNum = Number(k)
@@ -240,6 +242,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
           const shardCount = this.shard.get(key)?.size ?? 0
           if (shardCount === this.nbCollab - 2 * this.nbByz) {
+            console.warn("---Bloqué pour try deliver ---")
             await this.try_deliver(mid!.sd!, mid!.sn!)
           }
           break

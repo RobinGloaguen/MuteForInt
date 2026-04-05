@@ -52,14 +52,16 @@ export class CausalBridgeService implements OnDestroy {
     //Sinon envoie a CausalNode
     this.subs.push(
       this.network.messageIn.subscribe((msg) => {
-          console.warn('Bridge reçoit type:', msg.streamId.type, 'subtype:', msg.streamId.subtype)
         if (msg.streamId.type === Streams.CAUSALNODE || ((msg.streamId.type === Streams.DOCUMENT_CONTENT && 
     msg.streamId.subtype === StreamsSubtype.DOCUMENT_OPERATION))) {
+console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', StreamsSubtype[msg.streamId.subtype])
           this.MessageInFromNetworkToCausal$.next(msg)
         }else if (
             msg.streamId.type === Streams.DOCUMENT_CONTENT &&
             (msg.streamId.subtype === StreamsSubtype.DOCUMENT_QUERY || msg.streamId.subtype === StreamsSubtype.DOCUMENT_REPLY)
           ) {
+            console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', StreamsSubtype[msg.streamId.subtype])
+
             this.MessageInFromNetworkToCausal$.next(msg)
 
             // Bloquer pour tester causal — décommenter pour remettre la sync d'état

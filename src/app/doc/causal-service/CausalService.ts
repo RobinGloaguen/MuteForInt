@@ -159,7 +159,9 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
           if (idSender !== mid!.sd
             || mid!.sn !== (this.delivered.get(mid!.sd!) ?? 0) + 1
-            || this.hasInRegister(this.shardRegister, key, idSender)) { return }
+            || this.hasInRegister(this.shardRegister, key, idSender)) { 
+              console.warn("---RECEPTION COPIE DE SHARD---")
+              return }
           this.addToRegister(this.shardRegister, key, idSender)
 
           //Todo ici j'enregistre bien mon propre shard

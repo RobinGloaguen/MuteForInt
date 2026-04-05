@@ -55,12 +55,13 @@ export class CausalBridgeService implements OnDestroy {
           console.warn('Bridge reçoit type:', msg.streamId.type, 'subtype:', msg.streamId.subtype)
         if (msg.streamId.type === Streams.CAUSALNODE || ((msg.streamId.type === Streams.DOCUMENT_CONTENT && 
     msg.streamId.subtype === StreamsSubtype.DOCUMENT_OPERATION))) {
-          console.warn("--- LE CAUSAL RECOIT")
           this.MessageInFromNetworkToCausal$.next(msg)
         }else if (
             msg.streamId.type === Streams.DOCUMENT_CONTENT &&
             (msg.streamId.subtype === StreamsSubtype.DOCUMENT_QUERY || msg.streamId.subtype === StreamsSubtype.DOCUMENT_REPLY)
           ) {
+            this.MessageInFromNetworkToCausal$.next(msg)
+
             // Bloquer pour tester causal — décommenter pour remettre la sync d'état
             // this.MessageInFromNetworkToCore$.next(msg)
           } else {
@@ -94,19 +95,8 @@ export class CausalBridgeService implements OnDestroy {
 
   get messageInForMuteCore(): Observable<any> {
     //MessageInFromNetworkToCore cast déjà dans le bon type
-    console.log('[CausalBridge] messageInForMuteCore getter appelé');
     return merge(
-      this.MessageInFromNetworkToCore$.asObservable().pipe(
-        tap((msg: any) => {
-          if (msg?.streamId?.type === 400 || msg?.streamId?.type === 401) {
-            console.log(`[CausalBridge] ✅ Message ${msg.streamId.type} transmis à muteCore (direct)`);
-          }
-        })
-        
-      ),
-
-      //      this.deliverSubject.next(new causal.CausalMsg({ mid : {sd, sn}, initialSender: sd, type: causal.CausalType.DELIVER, content }))
-
+      this.MessageInFromNetworkToCore$.asObservable(),
       this.causalService!.deliverSubject.pipe(
           filter((msg) => !!msg?.content),
           map((msg) => {
@@ -138,11 +128,9 @@ export class CausalBridgeService implements OnDestroy {
          //On envoie directement le message codé
           // C'est bien un broadcast
           this._fromMuteCoreSubject!.next(content);
-          console.warn("--- Mute core envoie a causal")
         } else {
           //Sinon on envoie direct dans le réseau
           this.sharedMessageOut$.next(msg as unknown as IMessageIn) 
-          //console.warn("Mute core envoie direct dans le réseau")        
         }
       })
     );

@@ -65,7 +65,7 @@ console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', Str
             //this.MessageInFromNetworkToCausal$.next(msg)
 
             // Bloquer pour tester causal — décommenter pour remettre la sync d'état
-             this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
+             //this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
           } else {
           this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
         }
@@ -130,7 +130,17 @@ console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', Str
          //On envoie directement le message codé
           // C'est bien un broadcast
           this._fromMuteCoreSubject!.next(content);
-        } else {
+        }else if (
+            msg.streamId.type === Streams.DOCUMENT_CONTENT &&
+            (msg.streamId.subtype === StreamsSubtype.DOCUMENT_QUERY || msg.streamId.subtype === StreamsSubtype.DOCUMENT_REPLY)
+          ) {
+            console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', StreamsSubtype[msg.streamId.subtype])
+
+            //this.MessageInFromNetworkToCausal$.next(msg)
+
+            // Bloquer pour tester causal — décommenter pour remettre la sync d'état
+             //this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
+          }  else {
           //Sinon on envoie direct dans le réseau
           this.sharedMessageOut$.next(msg as unknown as IMessageIn) 
         }

@@ -62,10 +62,10 @@ console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', Str
           ) {
             console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', StreamsSubtype[msg.streamId.subtype])
 
-            this.MessageInFromNetworkToCausal$.next(msg)
+            //this.MessageInFromNetworkToCausal$.next(msg)
 
             // Bloquer pour tester causal — décommenter pour remettre la sync d'état
-            // this.MessageInFromNetworkToCore$.next(msg)
+             this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
           } else {
           this.MessageInFromNetworkToCore$.next(msg as unknown as MuteCoreMessageIn)
         }

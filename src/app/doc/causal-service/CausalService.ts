@@ -568,19 +568,13 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   //On le reçoit déjà encodé
   async causal_broadcast(content: Uint8Array) {
     console.warn('--- Rentre dans causalBroadcast')
-    console.warn('joinedPeers au moment du broadcast : ', this.joinedPeers)
     console.warn('myNetworkId : ', this.myNetworkId)
-    if (this.joinedPeers.length === 0) {
-      console.warn('[CausalService] Pas encore de collaborateurs, broadcast ignoré')
-      return
-    }
-    else {
-      console.warn("Il y a plusieurs collab -> "+this.joinedPeers.length)
-    }
     const arrayShard: Uint8Array[] = await split(content, this.nbCollab, (this.nbByz+1))
     const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
     const past = new Map(this.delivered)
     let i=0
+    console.warn('--- Envoie du shard -> '+content.toString+' avec le sn -> '+ snMid)
+
     for (const id of this.joinedPeers) {
       console.warn(`Envoi shard[${i}] à peer ${id}`)
       const shard = arrayShard[i]

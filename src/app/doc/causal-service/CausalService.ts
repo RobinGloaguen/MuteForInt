@@ -158,67 +158,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       switch (msg.type) {
         case causal.CausalType.SHARD: {
           console.warn("---- Reception shard")
-
-          if (idSender !== mid!.sd
-            || mid!.sn !== (this.delivered.get(mid!.sd!) ?? 0) + 1
-            || this.hasInRegister(this.shardRegister, key, idSender)) { 
-              console.warn("---RECEPTION COPIE DE SHARD---")
-              return }
-          this.addToRegister(this.shardRegister, key, idSender)
-
-          //Todo ici j'enregistre bien mon propre shard
-          this.setShardForMessage(mid!.sd!, mid!.sn!, this.myNetworkId!, shard!)
-
-
-          await this.waitUntil(() => {
-            console.warn("---Bloqué dans le wait qui controle le past ----")
-            const entries = Object.entries(past!)
-            return entries.every(([k, v]) => (this.delivered.get(Number(k)) ?? 0) >= v)
-          })
-
-          const localConf = new Map(this.confirmed)
-          const localDel = new Map(this.delivered)
-
-          if (!this.attestSent.has(key)) {
-            this.attestSent.add(key)
-            const attestMsg = new causal.CausalMsg({
-              mid: mid,
-              initialSender: mid!.sd,
-              type: causal.CausalType.ATTEST
-            })
-            this.send(attestMsg, StreamsSubtype.CAUSAL_ATTEST as any)
-          }
-
-          await this.waitUntil(() => this.getCountFromMap(this.attest, key) >= (this.nbCollab - this.nbByz))
-
-          if ((this.confirmed.get(mid!.sd!) ?? 0) < mid!.sn!) {
-            this.confirmed.set(mid!.sd!, mid!.sn!)
-          }
-
-          if (!this.confirmSent.has(key)) {
-            this.confirmSent.add(key)
-            const confirmMsg = new causal.CausalMsg({
-              mid: mid,
-              initialSender: mid!.sd,
-              type: causal.CausalType.CONFIRM
-            })
-            this.send(confirmMsg, StreamsSubtype.CAUSAL_CONFIRM as any)
-          }
-
-          await this.waitUntil(() => this.getCountFromMap(this.confirm, key) >= (3 * this.nbByz + 1))
-
-          if (!this.revealSent.has(key)) {
-            this.revealSent.add(key)
-            const revealMsg = new causal.CausalMsg({
-              mid: mid,
-              initialSender: mid!.sd,
-              type: causal.CausalType.REVEAL,
-              deliveredSd: this.mapToObj(localDel),
-              confirmed: this.mapToObj(localConf),
-              shard: shard
-            })
-            this.send(revealMsg, StreamsSubtype.CAUSAL_REVEAL as any)
-          }
+          await this.handleShard(mid!, shard!, past as { [k: string]: number }, idSender)
           break
         }
 
@@ -581,6 +521,19 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       console.warn(`Envoi shard[${i}] à peer ${id}`)
       const shard = arrayShard[i]
       console.log("Le x est -> : "+shard[shard.length-1])
+
+      if (id === this.myNetworkId) {
+        console.warn("My network id est "+this.myNetworkId)
+        const past = this.mapToObj(new Map(this.delivered))
+        this.handleShard(
+          { sd: this.myNetworkId, sn: snMid },
+          shard,
+          past,
+          this.myNetworkId!
+        )  // pas de await, sinon ça bloque la boucle d'envoi aux autres
+        i++
+        continue //Normalement pas besoin du continue, mais je le laisse pour être sûr de ne pas faire de bêtise
+      } else {
       const replyMsg = new causal.CausalMsg({
         mid: { sd: this.myNetworkId, sn: snMid },
         initialSender: this.myNetworkId,
@@ -591,8 +544,71 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       this.send(replyMsg, StreamsSubtype.CAUSAL_SHARD as any, id)
       i+=1
     }
+    }
     await this.waitUntil(() => (this.delivered.get(this.myNetworkId!) ?? 0) >= snMid)
   }
+
+  private async handleShard(
+  mid: NonNullable<causal.ICausalMsg['mid']>,
+  shard: Uint8Array,
+  past: { [k: string]: number },
+  idSender: number
+) {
+  const key = this.makeKey(mid.sd!, mid.sn!)
+
+  if (idSender !== mid.sd
+    || mid.sn !== (this.delivered.get(mid.sd!) ?? 0) + 1
+    || this.hasInRegister(this.shardRegister, key, idSender)) {
+    console.warn("---RECEPTION COPIE DE SHARD---")
+    return
+  }
+  this.addToRegister(this.shardRegister, key, idSender)
+  this.setShardForMessage(mid.sd!, mid.sn!, this.myNetworkId!, shard)
+
+  await this.waitUntil(() => {
+    const entries = Object.entries(past)
+    return entries.every(([k, v]) => (this.delivered.get(Number(k)) ?? 0) >= v)
+  })
+
+  const localConf = new Map(this.confirmed)
+  const localDel = new Map(this.delivered)
+
+  if (!this.attestSent.has(key)) {
+    this.attestSent.add(key)
+    const attestMsg = new causal.CausalMsg({
+      mid, initialSender: mid.sd, type: causal.CausalType.ATTEST
+    })
+    this.send(attestMsg, StreamsSubtype.CAUSAL_ATTEST as any)
+  }
+
+  await this.waitUntil(() => this.getCountFromMap(this.attest, key) >= (this.nbCollab - this.nbByz))
+
+  if ((this.confirmed.get(mid.sd!) ?? 0) < mid.sn!) {
+    this.confirmed.set(mid.sd!, mid.sn!)
+  }
+
+  if (!this.confirmSent.has(key)) {
+    this.confirmSent.add(key)
+    const confirmMsg = new causal.CausalMsg({
+      mid, initialSender: mid.sd, type: causal.CausalType.CONFIRM
+    })
+    this.send(confirmMsg, StreamsSubtype.CAUSAL_CONFIRM as any)
+  }
+
+  await this.waitUntil(() => this.getCountFromMap(this.confirm, key) >= (3 * this.nbByz + 1))
+
+  if (!this.revealSent.has(key)) {
+    this.revealSent.add(key)
+    const revealMsg = new causal.CausalMsg({
+      mid, initialSender: mid.sd,
+      type: causal.CausalType.REVEAL,
+      deliveredSd: this.mapToObj(localDel),
+      confirmed: this.mapToObj(localConf),
+      shard
+    })
+    this.send(revealMsg, StreamsSubtype.CAUSAL_REVEAL as any)
+  }
+}
 
   
 }

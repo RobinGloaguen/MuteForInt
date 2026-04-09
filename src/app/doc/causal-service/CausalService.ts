@@ -86,19 +86,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     super(messageIn$, messageOut$, Streams.CAUSALNODE as any, CausalMsgFactory)
 
     
-    // Enregistrement des entrées
-    memberJoin$.subscribe((networkId: number) => {
-          if (!this.joinedPeers.includes(networkId)) {
-        this.joinedPeers.push(networkId)
-        this.joinedPeers.sort((a, b) => a - b)
-        this.delivered.set(networkId, 0)  // ← ajout
-      }
-    })
-    memberLeave$.subscribe((networkId: number) => {
-        this.joinedPeers = this.joinedPeers.filter(id => id !== networkId)
-    })
-
-
+  
+    this.delivered = new Map()
     this.myPeerId =myPeerId
   
     this.myNetworkId$ = myNetworkId$
@@ -130,10 +119,23 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     this.revealSent = new Set()
     this.attestSent = new Set()
 
-    this.delivered = new Map()
+    
     this.confirmed = new Map()
     this.nbCollab = 6
     this.nbByz = 1
+
+      // Enregistrement des entrées
+    memberJoin$.subscribe((networkId: number) => {
+          if (!this.joinedPeers.includes(networkId)) {
+        this.joinedPeers.push(networkId)
+        this.joinedPeers.sort((a, b) => a - b)
+        this.delivered.set(networkId, 0)  // ← ajout
+      }
+    })
+    memberLeave$.subscribe((networkId: number) => {
+        this.joinedPeers = this.joinedPeers.filter(id => id !== networkId)
+    })
+
 
 
     this.messageFromMuteCore$ = messageFromMuteCore$

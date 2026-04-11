@@ -1,12 +1,7 @@
 import { Observable, Subject } from 'rxjs'
 // Import CORRECT et public
-//import { IMessageIn, IMessageOut, Service } from '@coast-team/mute-core'
-//import { IMessageIn, IMessageOut, Service } from '@coast-team/mute-core/dist/types/src/misc'
-
-// APRÈS
 import { IMessageIn, IMessageOut ,  Service} from './IMessage'
-//import { Service } from '@coast-team/mute-core/dist/types/src/misc'
-//import { IMessageIn, IMessageOut, Service } from '@coast-team/mute-core/misc'
+
 import { split, combine, add, mult, div, interpolatePolynomial } from "./shamit-secret-sharing";
 import { causal } from './causal_proto.js' //Nouveau
 import { ICollaborator } from '@coast-team/mute-core'
@@ -32,7 +27,6 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
  
   public myNetworkId$ : Observable<number>
   public myNetworkId? : number
-  public collaborators: Map<number, ICollaborator>
 
   // Compteurs par sd:sn -> Map<sender, count>
   public witness: Map<string, Map<number, number>>
@@ -126,12 +120,13 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
       // Enregistrement des entrées
     memberJoin$.subscribe((networkId: number) => {
-          if (!this.joinedPeers.includes(networkId)) {
+      if (!this.joinedPeers.includes(networkId)) {
         this.joinedPeers.push(networkId)
         this.joinedPeers.sort((a, b) => a - b)
         this.delivered.set(networkId, 0)  // ← ajout
       }
     })
+
     memberLeave$.subscribe((networkId: number) => {
         this.joinedPeers = this.joinedPeers.filter(id => id !== networkId)
     })
@@ -141,7 +136,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     this.messageFromMuteCore$ = messageFromMuteCore$
 
     this.messageFromMuteCore$.subscribe(msg => {
-      this.causal_broadcast(msg)
+      //this.causal_broadcast(msg)
+      this.measureCausalLatency(msg).then(latency => {
+        console.log(`Latence de causal_broadcast : ${latency} ms`)
+      })  
     })
 
     this.messageIn$.subscribe(async ({ senderNetworkId, msg }) => {
@@ -608,6 +606,23 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     })
     this.send(revealMsg, StreamsSubtype.CAUSAL_REVEAL as any)
   }
+}
+
+// Mesure le temps de causal_broadcast en attendant la livraison du message dans deliverSubject
+measureCausalLatency(content: Uint8Array): Promise<number> {
+  const t0 = Date.now()
+
+  return new Promise((resolve) => {
+    const sub = this.deliverSubject.subscribe(({ senderNetworkId }) => {
+      if (senderNetworkId === this.myNetworkId) {
+        const latency = Date.now() - t0
+        sub.unsubscribe()
+        resolve(latency)
+      }
+    })
+
+    this.causal_broadcast(content)
+  })
 }
 
   

@@ -81,6 +81,8 @@ console.warn('Causal reçoit type:', Streams[msg.streamId.type], 'subtype:', Str
         this.network.send(streamId, content, recipientNetworkId)
       })
     )
+
+
     this._fromMuteCoreSubject  = new Subject<Uint8Array>()
     const myNetworkId$ = new BehaviorSubject<number>(myNetworkId)
     this.causalService = new CausalService(

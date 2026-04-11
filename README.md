@@ -26,3 +26,8 @@ Il y a des doublons dans les envoies des ATTEST WITNESS etc. Ca vient sans doute
 On pourrait essayer de regarder pour gérer les races conditions quand fait des getCountInMap()
 
 La libp2p refusait d'envoyer des messages à son propre processus donc j'ai remplacé la recepetion de shard par une fonction qu'on appel.
+
+# Benchemark
+
+On peut mesurer le temps pour qu'on délivre notre propre message. (facil)
+Ou mesurer le temps pour que les autres le délivre.

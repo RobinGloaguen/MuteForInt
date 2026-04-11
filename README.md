@@ -29,5 +29,5 @@ La libp2p refusait d'envoyer des messages à son propre processus donc j'ai remp
 
 # Benchemark
 
-On peut mesurer le temps pour qu'on délivre notre propre message. (facil)
+On peut mesurer le temps pour qu'on délivre notre propre message. C'est ce qu'on fait avec la fonction measureCausalLatency. Les résultats sont de : 4510 ms, 4513 ms.
 Ou mesurer le temps pour que les autres le délivre.

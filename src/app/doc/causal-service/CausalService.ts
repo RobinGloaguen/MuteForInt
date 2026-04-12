@@ -67,6 +67,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   public joinedPeers: number[] = []
 
+    // ---- RTT ping/pong ----
+  private pingTimestamps: Map<string, number> = new Map()  // key: "sd:sn"
+  private pingTriggered = false
+
 
   constructor(
     messageIn$: Observable<IMessageIn>,
@@ -124,6 +128,12 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         this.joinedPeers.push(networkId)
         this.joinedPeers.sort((a, b) => a - b)
         this.delivered.set(networkId, 0)  // ← ajout
+
+        // Dès qu'on est nbCollab sur le document, chacun envoie un ping
+        if (this.joinedPeers.length === this.nbCollab && !this.pingTriggered) {
+          this.pingTriggered = true
+          this.startPingRTT()
+        }
       }
     })
 
@@ -387,14 +397,28 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     const m = this.getWinningWitness(sd, sn, this.nbCollab - this.nbByz)
     if (m != null) {
       //Rajout pour le test
+      //On a déjà décodé normalement
       const shardArray = this.getShardsForMessage(sd, sn) //ajout
       const encodeContent = await combine(shardArray) //ajout
+
+
+      // ---- Interception ping / pong avant de monter à mute-core ----
+     
+      const text = m
+
+       if (text === 'ping') {
+        if (sd !== this.myNetworkId) {
+          this.respondToPing(sd, sn)   // on répond au ping des autres
+        }
+        // ne remonte pas à mute-core
+      } else if (text.startsWith('pong:')) {
+        this.handlePongReceived(text, sd)   // on traite le pong si c'est notre ping
+        // ne remonte pas à mute-core
+      } else {
+        this.deliverSubject.next({ senderNetworkId: sd, content: encodeContent })
+        console.warn("---- J'ai déliver c'était différent de null------")
+      }
     
-      this.deliverSubject.next({ senderNetworkId: sd, content: encodeContent })
-      console.warn("---- J'ai déliver c'était différent de null------")
-      //todo
-      //C'est notre sortie a la couche au dessus via pub sub
-      // causal_deliver m
     } else{
       console.warn("---- J'ai déliver c'était null------")
     }
@@ -624,6 +648,46 @@ measureCausalLatency(content: Uint8Array): Promise<number> {
     this.causal_broadcast(content)
   })
 }
+
+ // ---- RTT : envoi du ping ----
+
+  private async startPingRTT(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 10000))
+    if (this.joinedPeers[0]==this.myNetworkId!){
+      const sn = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
+      const key = this.makeKey(this.myNetworkId!, sn)
+      this.pingTimestamps.set(key, Date.now())
+      const encoder = new TextEncoder()
+      this.causal_broadcast(encoder.encode('ping'))
+
+    }
+    
+  }
+
+  // ---- RTT : réponse au ping d'un autre ----
+
+  private respondToPing(pingSd: number, pingSn: number): void {
+    const encoder = new TextEncoder()
+    const pongContent = encoder.encode(`pong:${pingSd}:${pingSn}`)
+    this.causal_broadcast(pongContent)
+  }
+
+  // ---- RTT : réception d'un pong répondant à notre ping ----
+
+  private handlePongReceived(text: string, pongSender: number): void {
+    const parts = text.split(':')
+    const pingSd = Number(parts[1])
+    const pingSn = Number(parts[2])
+    if (pingSd === this.myNetworkId) {
+      const key = this.makeKey(pingSd, pingSn)
+      const t0 = this.pingTimestamps.get(key)
+      if (t0 !== undefined) {
+        const rtt = Date.now() - t0
+        const latency = rtt / 2
+        console.log(`[RTT] Pong de ${pongSender} → RTT=${rtt}ms, latence estimée ≈ ${latency}ms`)
+      }
+    }
+  }
 
   
 }

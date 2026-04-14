@@ -3,7 +3,8 @@ export enum Streams {
   METADATA,
   DOCUMENT_CONTENT,
   CURSOR,
-  CAUSALNODE
+  CAUSALNODE,
+  PING_PONG = 500,
 }
 
 export enum StreamsSubtype {
@@ -23,6 +24,8 @@ export enum StreamsSubtype {
   CAUSAL_REVEAL=1002, ////RAJOUT
   CAUSAL_WITNESS=1003,
   CAUSAL_CONFIRM=1004,
+  PING = 1005,
+  PONG = 1006,
 }
 
 export interface StreamId {

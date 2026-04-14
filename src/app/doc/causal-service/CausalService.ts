@@ -17,9 +17,6 @@ Revoir si c'est normal qu'on puisse delivrer un message sans réussir a trouver 
 Revoir si le peerId est le meme pour tout le monde même si on ne lance pas les noeuds sur la même machines
 */
 
-//const proto = (protoRoot as any).default.causal as typeof causal
-
-
 const CausalMsgFactory = causal.CausalMsg
 
 export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg> {
@@ -28,22 +25,19 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   public myNetworkId$ : Observable<number>
   public myNetworkId? : number
 
-  // Compteurs par sd:sn -> Map<sender, count>
-  public witness: Map<string, Map<number, number>>
-  public confirm: Map<string, Map<number, number>>
-  public attest: Map<string, Map<number, number>>
-  public reveal: Map<string, Map<number, number>>
+  // FIX : Set<number> au lieu de Map<number, number> — on veut compter les senders distincts, pas cumuler
+  // Enregistre MID -> SD pour savoir pour un MID je l'ai reçu de qui.
+  public witness: Map<string, Set<number>>
+  public confirm: Map<string, Set<number>>
+  public attest: Map<string, Set<number>>
+  public reveal: Map<string, Set<number>>
 
+  // Pour un MID j'enregistre le shard que j'ai reçu d'un sender
   // Shards reçus : sd:sn -> Map<sender, shard>
-  //Il faudrait stocker l'id local en plus
   public shard: Map<string, Map<number, Uint8Array>>
 
   // Registers (anti-doublon) : sd:sn -> Set<sender>
-  public confirmRegister: Map<string, Set<number>>
-  public revealRegister: Map<string, Set<number>>
   public shardRegister: Map<string, Set<number>>
-  public attestRegister: Map<string, Set<number>>
-  public witnessRegister: Map<string, Set<number>>
 
   // Sent (anti-doublon envoi) : sd:sn -> boolean
   private witnessSent: Set<string>
@@ -57,7 +51,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   private nbByz: number
 
   // Contenu des witness : sd:sn -> Map<sender, content>
-  private witnessContent : Map<string, Map<number, string>>
+  private witnessContent : Map<string, Map<number, string | null>>
 
   private suspected : Set<number>
   public deliverSubject: Subject<{ senderNetworkId: number, content: Uint8Array }>
@@ -67,7 +61,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   public joinedPeers: number[] = []
 
-    // ---- RTT ping/pong ----
+  // ---- RTT ping/pong ----
   private pingTimestamps: Map<string, number> = new Map()  // key: "sd:sn"
   private pingTriggered = false
 
@@ -78,15 +72,13 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     myNetworkId$: Observable<number>,
     messageFromMuteCore$ : Observable<Uint8Array>,
     myPeerId : string,
-    memberJoin$: Observable<number>,   // à ajouter
-    memberLeave$: Observable<number>   // à ajouter
+    memberJoin$: Observable<number>,
+    memberLeave$: Observable<number>
   ) {
     super(messageIn$, messageOut$, Streams.CAUSALNODE as any, CausalMsgFactory)
 
-    
-  
     this.delivered = new Map()
-    this.myPeerId =myPeerId
+    this.myPeerId = myPeerId
   
     this.myNetworkId$ = myNetworkId$
     //Je me rajoute dans le set
@@ -94,7 +86,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       this.myNetworkId = id
       this.joinedPeers.push(id)
       this.joinedPeers.sort((a, b) => a - b)
-      this.delivered.set(id, 0)  // ← ajout
+      this.delivered.set(id, 0)
     })
     this.deliverSubject = new Subject()
     this.fifoBroadcastSubject = new Subject()
@@ -102,14 +94,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     this.suspected = new Set()
     this.witness = new Map()
     this.attest = new Map()
-    this.reveal = new Map()
     this.shard = new Map()
 
-    this.confirmRegister = new Map()
     this.witnessContent = new Map()
-    this.witnessRegister = new Map()
-    this.attestRegister = new Map()
-    this.revealRegister = new Map()
+    this.reveal = new Map()
     this.shardRegister = new Map()
 
     this.confirmSent = new Set()
@@ -117,17 +105,16 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     this.revealSent = new Set()
     this.attestSent = new Set()
 
-    
     this.confirmed = new Map()
     this.nbCollab = 6
     this.nbByz = 1
 
-      // Enregistrement des entrées
+    // Enregistrement des entrées
     memberJoin$.subscribe((networkId: number) => {
       if (!this.joinedPeers.includes(networkId)) {
         this.joinedPeers.push(networkId)
         this.joinedPeers.sort((a, b) => a - b)
-        this.delivered.set(networkId, 0)  // ← ajout
+        this.delivered.set(networkId, 0)
 
         // Dès qu'on est nbCollab sur le document, chacun envoie un ping
         if (this.joinedPeers.length === this.nbCollab && !this.pingTriggered) {
@@ -138,10 +125,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     })
 
     memberLeave$.subscribe((networkId: number) => {
-        this.joinedPeers = this.joinedPeers.filter(id => id !== networkId)
+      this.joinedPeers = this.joinedPeers.filter(id => id !== networkId)
     })
-
-
 
     this.messageFromMuteCore$ = messageFromMuteCore$
 
@@ -153,7 +138,6 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     })
 
     this.messageIn$.subscribe(async ({ senderNetworkId, msg }) => {
-      console.warn("---- Reception dans messageIn$ de "+senderNetworkId)
       const idSender = senderNetworkId
       const InitialSender = msg.initialSender
       const past = msg.deliveredSd as { [k: string]: number } | null
@@ -162,22 +146,19 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       const conf = msg.confirmed
       const content = msg.content
       const key = this.makeKey(mid!.sd!, mid!.sn!)
+      console.log('Causal reçoit type:', causal.CausalType[msg.type!], 'avec le MID', mid?.sd, ':', mid?.sn, 'envoyé par ',idSender)
 
       switch (msg.type) {
         case causal.CausalType.SHARD: {
-          console.warn("---- Reception shard")
           await this.handleShard(mid!, shard!, past as { [k: string]: number }, idSender)
           break
         }
 
         case causal.CausalType.REVEAL: {
-          console.warn("---- Reception reveal")
-
-          if (this.hasInRegister(this.revealRegister, key, idSender)) { return }
-          this.addToRegister(this.revealRegister, key, idSender)
+          if (this.hasInRegister(this.reveal, key, idSender)) { return }
+          this.addToRegister(this.reveal, key, idSender)
 
           await this.waitUntil(() => {
-            console.warn("--Bloqué dans le wait qui controle le reaveal--")
             const entries = Object.entries(past!)
             return entries.every(([k, v]) => {
               const kNum = Number(k)
@@ -190,11 +171,9 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
           })
           //Les shards sont rangés suivant l'identifiant local...
           this.setShardForMessage(mid!.sd!, mid!.sn!, idSender, shard!)
-          //todo ici ranger les shard avec mid -> shard -> idPoly(x)
 
           const shardCount = this.shard.get(key)?.size ?? 0
           if (shardCount === this.nbCollab - 2 * this.nbByz) {
-            console.warn("---Bloqué pour try deliver ---")
             await this.try_deliver(mid!.sd!, mid!.sn!)
           }
           break
@@ -202,56 +181,42 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
         //Je réceptionne les Attest
         case causal.CausalType.ATTEST: {
-          console.warn("---- Reception attest")
-
-          if (this.hasInRegister(this.attestRegister, key, idSender)) { return }
-          this.addToRegister(this.attestRegister, key, idSender)
-          const prevAttest = this.getCountFromMap(this.attest, key)
-          this.setCountInMap(this.attest, key, idSender, prevAttest + 1)
+          if (this.hasInRegister(this.attest, key, idSender)) { return }
+          this.addToSet(this.attest, key, idSender)
           break
         }
-
         //Je réceptionne les confirm
         case causal.CausalType.CONFIRM: {
-          console.warn("---- Reception confirm")
-
-          if (this.hasInRegister(this.confirmRegister, key, idSender)) { return }
-          this.addToRegister(this.confirmRegister, key, idSender)
-          const prevConfirm = this.getCountFromMap(this.confirm, key)
-          this.setCountInMap(this.confirm, key, idSender, prevConfirm + 1)
+          if (this.hasInRegister(this.confirm, key, idSender)) { return }
+          this.addToSet(this.confirm, key, idSender)
           break
         }
 
         case causal.CausalType.WITNESS: {
-          console.warn("---- Reception witness")
-          if (this.hasInRegister(this.witnessRegister, key, idSender)) { return }
-          this.addToRegister(this.witnessRegister, key, idSender)
-          this.setWitnessContent(mid!.sd!, mid!.sn!, idSender, content!)
-          const prevWitness = this.getCountFromMap(this.witness, key)
-          this.setCountInMap(this.witness, key, idSender, prevWitness + 1)
-          const count = this.getCountFromMap(this.witness, key)
-          //todo : la je le fais a chaque fois
+          if (this.hasInRegister(this.witness, key, idSender)) { return }
+          this.setWitnessContent(mid!.sd!, mid!.sn!, idSender, content ?? null)
+          this.addToSet(this.witness, key, idSender)
+          const count = this.getCountFromSet(this.witness, key)
+
           //when both of the following conditions hold for the first time, for some mid:
+          const m = this.getWinningWitness(mid!.sd!, mid!.sn!, this.nbCollab- 2*this.nbByz)
           if (count >= (this.nbCollab - (this.nbByz))) {
-            const m = this.getWinningWitness(mid!.sd!, mid!.sn!, this.nbCollab- 2*this.nbByz)
-            if (m != null) {
+            if (m == null || m == undefined) {
               this.suspected.add(mid!.sd!)
             }
           }
 
-          const m = this.getWinningWitness(mid!.sd!, mid!.sn!, this.nbCollab- 2*this.nbByz)
-          if (m != null) {
-            if (!this.witnessSent.has(key)) {
-              this.witnessSent.add(key)
-              const witnessMsg = new causal.CausalMsg({
-                mid: mid,
-                initialSender: mid!.sd,
-                type: causal.CausalType.WITNESS,
-                content : m
-              })
-              this.send(witnessMsg, StreamsSubtype.CAUSAL_WITNESS as any)
-            }
+          if (m !== undefined && !this.witnessSent.has(key)) {
+            this.witnessSent.add(key)
+            const witnessMsg = new causal.CausalMsg({
+              mid,
+              initialSender: mid!.sd,
+              type: causal.CausalType.WITNESS,
+              content: m
+            })
+            this.send(witnessMsg, StreamsSubtype.CAUSAL_WITNESS as any)
           }
+          
           break
         }
       }
@@ -279,21 +244,18 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     inner.add(sender)
   }
 
-  // ---- Helpers compteurs : sd:sn -> Map<sender, count> ----
-
-  private getCountFromMap(map: Map<string, Map<number, number>>, key: string): number {
-    let total = 0
-    map.get(key)?.forEach(v => total += v)
-    return total
-  }
-
-  private setCountInMap(map: Map<string, Map<number, number>>, key: string, sender: number, val: number): void {
+  // FIX : nouveaux helpers pour Map<string, Set<number>> (attest, confirm, witness)
+  private addToSet(map: Map<string, Set<number>>, key: string, sender: number): void {
     let inner = map.get(key)
     if (!inner) {
-      inner = new Map()
+      inner = new Set()
       map.set(key, inner)
     }
-    inner.set(sender, val)
+    inner.add(sender)
+  }
+
+  private getCountFromSet(map: Map<string, Set<number>>, key: string): number {
+    return map.get(key)?.size ?? 0
   }
 
   // ---- Helpers shards ----
@@ -311,13 +273,14 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   protected getShardsForMessage(sd: number, sn: number): Uint8Array[] {
     return Array.from(this.shard.get(this.makeKey(sd, sn))?.values() ?? [])
   }
+
   protected getMapShardsForMessage(sd: number, sn: number): Map<number, Uint8Array> {
     return this.shard.get(this.makeKey(sd, sn)) ?? new Map()
   }
 
   // ---- Helpers witnessContent ----
 
-  private setWitnessContent(sd: number, sn: number, sender: number, val: string): void {
+  private setWitnessContent(sd: number, sn: number, sender: number, val: string | null): void {
     const key = this.makeKey(sd, sn)
     let inner = this.witnessContent.get(key)
     if (!inner) {
@@ -327,30 +290,34 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     inner.set(sender, val)
   }
 
-  private getAllWitnessContent(sd: number, sn: number): Map<number, string> {
+  private getAllWitnessContent(sd: number, sn: number): Map<number, string |null > {
     return this.witnessContent.get(this.makeKey(sd, sn)) ?? new Map()
   }
 
-  private getWinningWitness(sd: number, sn: number, borne: number ): string | null {
+  private getWinningWitness(sd: number, sn: number, borne: number ): string | null | undefined{
     const witnesses = this.getAllWitnessContent(sd, sn)
-    const counts = new Map<string, number>()
+    const counts = new Map<string | null, number>()
     for (const [, m] of witnesses) {
       counts.set(m, (counts.get(m) ?? 0) + 1)
     }
     for (const [m, count] of counts) {
       if (count >= borne) return m
     }
-    return null
+    return undefined
   }
 
   // ---- try_deliver ----
 
   protected async try_deliver(sd: number, sn: number) {
-    //Pas bien implémenté
-    //todo implémentation en utilisant les fonctions de la lib secret sharing pour travailler sur corps gallois
+    const key = this.makeKey(sd, sn)
+
+    const trydelTime = Date.now()
+   
     const shardsForPoly = this.existancePolynome(sd, sn)
+
+    this.logStep(key, `A checker l'existence du poly`, trydelTime)
     if (shardsForPoly == null){
-      console.log("----- PAS DE SOLUTION --------")
+      console.log("----- PAS DE SOLUTION TROUVÉ POUR LE POLY --------")
     }
     if (shardsForPoly != null) {
       console.warn("-----Taille de shard qu'on renvoie pour reconsruire le poly : normalement 2 -> :-----"+shardsForPoly.size)
@@ -385,14 +352,12 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       }
     }
 
+    this.logStep(key, `Avant le wait de try_del`, trydelTime)
+    //wait until ∃m, pi has received witness(mid, m) from at least n − t different processes;
     await this.waitUntil(() => {
-      const witnesses = this.getAllWitnessContent(sd, sn)
-      const counts = new Map<string, number>()
-      for (const [, m] of witnesses) {
-        counts.set(m, (counts.get(m) ?? 0) + 1)
-      }
-      return Array.from(counts.values()).some(count => count >= this.nbCollab - this.nbByz)
+      return this.getWinningWitness(sd, sn, this.nbCollab - this.nbByz) !== undefined
     })
+    this.logStep(key, `Apres le wait de try_del`, trydelTime)
 
     const m = this.getWinningWitness(sd, sn, this.nbCollab - this.nbByz)
     if (m != null) {
@@ -401,12 +366,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       const shardArray = this.getShardsForMessage(sd, sn) //ajout
       const encodeContent = await combine(shardArray) //ajout
 
-
       // ---- Interception ping / pong avant de monter à mute-core ----
-     
       const text = m
 
-       if (text === 'ping') {
+      if (text === 'ping') {
         if (sd !== this.myNetworkId) {
           this.respondToPing(sd, sn)   // on répond au ping des autres
         }
@@ -419,7 +382,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         console.warn("---- J'ai déliver c'était différent de null------")
       }
     
-    } else{
+    } else {
       console.warn("---- J'ai déliver c'était null------")
     }
   
@@ -470,6 +433,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       }
       yield* backtrack(0, []);
     }
+    
 
     // Parcours toutes les combinaisons de d+1 shards
     for (const combo of shardCombinations(basePoints, d + 1)) {
@@ -531,11 +495,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   //On le reçoit déjà encodé
   async causal_broadcast(content: Uint8Array) {
-    console.warn('--- Rentre dans causalBroadcast')
-    console.warn('myNetworkId : ', this.myNetworkId)
     const arrayShard: Uint8Array[] = await split(content, this.nbCollab, (this.nbByz+1))
     const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
     const past = new Map(this.delivered)
+
     let i=0
     console.warn('--- Envoie du shard -> '+content.toString+' avec le sn -> '+ snMid)
 
@@ -545,7 +508,6 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       console.log("Le x est -> : "+shard[shard.length-1])
 
       if (id === this.myNetworkId) {
-        console.warn("My network id est "+this.myNetworkId)
         const past = this.mapToObj(new Map(this.delivered))
         this.handleShard(
           { sd: this.myNetworkId, sn: snMid },
@@ -556,112 +518,119 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         i++
         continue //Normalement pas besoin du continue, mais je le laisse pour être sûr de ne pas faire de bêtise
       } else {
-      const replyMsg = new causal.CausalMsg({
-        mid: { sd: this.myNetworkId, sn: snMid },
-        initialSender: this.myNetworkId,
-        deliveredSd: this.mapToObj(past),
-        type: causal.CausalType.SHARD,
-        shard : shard,
-      })
-      this.send(replyMsg, StreamsSubtype.CAUSAL_SHARD as any, id)
-      i+=1
-    }
+        const replyMsg = new causal.CausalMsg({
+          mid: { sd: this.myNetworkId, sn: snMid },
+          initialSender: this.myNetworkId,
+          deliveredSd: this.mapToObj(past),
+          type: causal.CausalType.SHARD,
+          shard : shard,
+        })
+        this.send(replyMsg, StreamsSubtype.CAUSAL_SHARD as any, id)
+        i+=1
+      }
     }
     await this.waitUntil(() => (this.delivered.get(this.myNetworkId!) ?? 0) >= snMid)
   }
 
   private async handleShard(
-  mid: NonNullable<causal.ICausalMsg['mid']>,
-  shard: Uint8Array,
-  past: { [k: string]: number },
-  idSender: number
-) {
-  const key = this.makeKey(mid.sd!, mid.sn!)
+    mid: NonNullable<causal.ICausalMsg['mid']>,
+    shard: Uint8Array,
+    past: { [k: string]: number },
+    idSender: number
+  ) {
+    const key = this.makeKey(mid.sd!, mid.sn!)
+    const t0 = Date.now()
 
-  if (idSender !== mid.sd
-    || mid.sn !== (this.delivered.get(mid.sd!) ?? 0) + 1
-    || this.hasInRegister(this.shardRegister, key, idSender)) {
-    console.warn("---RECEPTION COPIE DE SHARD---")
-    return
-  }
-  this.addToRegister(this.shardRegister, key, idSender)
-  this.setShardForMessage(mid.sd!, mid.sn!, this.myNetworkId!, shard)
+    if (idSender !== mid.sd
+      || mid.sn !== (this.delivered.get(mid.sd!) ?? 0) + 1
+      || this.hasInRegister(this.shardRegister, key, idSender)) {
+      console.warn("---RECEPTION DOUBLON D'UN MID SHARD---")
+      return
+    }
+    this.addToRegister(this.shardRegister, key, idSender)
+    this.setShardForMessage(mid.sd!, mid.sn!, this.myNetworkId!, shard)
 
-  await this.waitUntil(() => {
-    const entries = Object.entries(past)
-    return entries.every(([k, v]) => (this.delivered.get(Number(k)) ?? 0) >= v)
-  })
-
-  const localConf = new Map(this.confirmed)
-  const localDel = new Map(this.delivered)
-
-  if (!this.attestSent.has(key)) {
-    this.attestSent.add(key)
-    const attestMsg = new causal.CausalMsg({
-      mid, initialSender: mid.sd, type: causal.CausalType.ATTEST
+    this.logStep(key, `Avant le wait de causalité résolu`, t0)
+    //todo ici changement
+    await this.waitUntil(() => {
+      const entries = Object.entries(past)
+      const blocking = entries.filter(([k, v]) => (this.delivered.get(Number(k)) ?? 0) < v)
+      return blocking.length === 0
     })
-    this.send(attestMsg, StreamsSubtype.CAUSAL_ATTEST as any)
+    this.logStep(key, `WAIT1 causalité résolue`, t0)
+
+    const localConf = new Map(this.confirmed)
+    const localDel = new Map(this.delivered)
+
+    if (!this.attestSent.has(key)) {
+      this.attestSent.add(key)
+      const attestMsg = new causal.CausalMsg({
+        mid, initialSender: mid.sd, type: causal.CausalType.ATTEST
+      })
+      this.send(attestMsg, StreamsSubtype.CAUSAL_ATTEST as any)
+    }
+
+    // FIX : utilise getCountFromSet au lieu de getCountFromMap
+    await this.waitUntil(() => this.getCountFromSet(this.attest, key) >= (this.nbCollab - this.nbByz))
+    this.logStep(key, `WAIT2 nb attest suffisant`, t0)
+
+    if ((this.confirmed.get(mid.sd!) ?? 0) < mid.sn!) {
+      this.confirmed.set(mid.sd!, mid.sn!)
+    }
+
+    if (!this.confirmSent.has(key)) {
+      this.confirmSent.add(key)
+      const confirmMsg = new causal.CausalMsg({
+        mid, initialSender: mid.sd, type: causal.CausalType.CONFIRM
+      })
+      this.send(confirmMsg, StreamsSubtype.CAUSAL_CONFIRM as any)
+    }
+
+    // FIX : utilise getCountFromSet au lieu de getCountFromMap
+    await this.waitUntil(() => this.getCountFromSet(this.confirm, key) >= (3 * this.nbByz + 1))
+    this.logStep(key, `WAIT2 nb confirm suffisant`, t0)
+
+    if (!this.revealSent.has(key)) {
+      this.revealSent.add(key)
+      const revealMsg = new causal.CausalMsg({
+        mid, initialSender: mid.sd,
+        type: causal.CausalType.REVEAL,
+        deliveredSd: this.mapToObj(localDel),
+        confirmed: this.mapToObj(localConf),
+        shard
+      })
+      this.send(revealMsg, StreamsSubtype.CAUSAL_REVEAL as any)
+    }
   }
 
-  await this.waitUntil(() => this.getCountFromMap(this.attest, key) >= (this.nbCollab - this.nbByz))
+  // Mesure le temps de causal_broadcast en attendant la livraison du message dans deliverSubject
+  measureCausalLatency(content: Uint8Array): Promise<number> {
+    const t0 = Date.now()
 
-  if ((this.confirmed.get(mid.sd!) ?? 0) < mid.sn!) {
-    this.confirmed.set(mid.sd!, mid.sn!)
-  }
+    return new Promise((resolve) => {
+      const sub = this.deliverSubject.subscribe(({ senderNetworkId }) => {
+        if (senderNetworkId === this.myNetworkId) {
+          const latency = Date.now() - t0
+          sub.unsubscribe()
+          resolve(latency)
+        }
+      })
 
-  if (!this.confirmSent.has(key)) {
-    this.confirmSent.add(key)
-    const confirmMsg = new causal.CausalMsg({
-      mid, initialSender: mid.sd, type: causal.CausalType.CONFIRM
+      this.causal_broadcast(content)
     })
-    this.send(confirmMsg, StreamsSubtype.CAUSAL_CONFIRM as any)
   }
 
-  await this.waitUntil(() => this.getCountFromMap(this.confirm, key) >= (3 * this.nbByz + 1))
-
-  if (!this.revealSent.has(key)) {
-    this.revealSent.add(key)
-    const revealMsg = new causal.CausalMsg({
-      mid, initialSender: mid.sd,
-      type: causal.CausalType.REVEAL,
-      deliveredSd: this.mapToObj(localDel),
-      confirmed: this.mapToObj(localConf),
-      shard
-    })
-    this.send(revealMsg, StreamsSubtype.CAUSAL_REVEAL as any)
-  }
-}
-
-// Mesure le temps de causal_broadcast en attendant la livraison du message dans deliverSubject
-measureCausalLatency(content: Uint8Array): Promise<number> {
-  const t0 = Date.now()
-
-  return new Promise((resolve) => {
-    const sub = this.deliverSubject.subscribe(({ senderNetworkId }) => {
-      if (senderNetworkId === this.myNetworkId) {
-        const latency = Date.now() - t0
-        sub.unsubscribe()
-        resolve(latency)
-      }
-    })
-
-    this.causal_broadcast(content)
-  })
-}
-
- // ---- RTT : envoi du ping ----
+  // ---- RTT : envoi du ping ----
 
   private async startPingRTT(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 10000))
-    if (this.joinedPeers[0]==this.myNetworkId!){
+    if (this.joinedPeers[0] == this.myNetworkId!) {
       const sn = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
       const key = this.makeKey(this.myNetworkId!, sn)
       this.pingTimestamps.set(key, Date.now())
       const encoder = new TextEncoder()
       this.causal_broadcast(encoder.encode('ping'))
-
     }
-    
   }
 
   // ---- RTT : réponse au ping d'un autre ----
@@ -689,5 +658,10 @@ measureCausalLatency(content: Uint8Array): Promise<number> {
     }
   }
 
-  
+  // Helper de timing
+  private logStep(key: string, step: string, t0: number): number {
+    const now = Date.now()
+    console.log(`[PERF] ${key} | ${step} | +${now - t0}ms`)
+    return now
+  }
 }

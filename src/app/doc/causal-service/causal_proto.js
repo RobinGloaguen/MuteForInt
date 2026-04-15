@@ -159,7 +159,7 @@ $root.causal = (function() {
          * @property {causal.CausalType|null} [type] CausalMsg type
          * @property {Uint8Array|null} [shard] CausalMsg shard
          * @property {Object.<string,number>|null} [confirmed] CausalMsg confirmed
-         * @property {string|null} [content] CausalMsg content
+         * @property {Uint8Array|null} [content] CausalMsg content
          */
 
         /**
@@ -229,11 +229,11 @@ $root.causal = (function() {
 
         /**
          * CausalMsg content.
-         * @member {string} content
+         * @member {Uint8Array} content
          * @memberof causal.CausalMsg
          * @instance
          */
-        CausalMsg.prototype.content = "";
+        CausalMsg.prototype.content = $util.newBuffer([]);
 
         /**
          * Creates a new CausalMsg instance using the specified properties.
@@ -274,7 +274,7 @@ $root.causal = (function() {
                 for (var keys = Object.keys(message.confirmed), i = 0; i < keys.length; ++i)
                     writer.uint32(/* id 6, wireType 2 =*/50).fork().uint32(/* id 1, wireType 0 =*/8).int32(keys[i]).uint32(/* id 2, wireType 0 =*/16).int32(message.confirmed[keys[i]]).ldelim();
             if (message.content != null && Object.hasOwnProperty.call(message, "content"))
-                writer.uint32(/* id 7, wireType 2 =*/58).string(message.content);
+                writer.uint32(/* id 7, wireType 2 =*/58).bytes(message.content);
             return writer;
         };
 
@@ -353,7 +353,7 @@ $root.causal = (function() {
                     message.confirmed[key] = value;
                     break;
                 case 7:
-                    message.content = reader.string();
+                    message.content = reader.bytes();
                     break;
                 default:
                     reader.skipType(tag & 7);

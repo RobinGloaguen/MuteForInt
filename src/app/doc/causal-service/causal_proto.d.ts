@@ -85,7 +85,7 @@ export namespace causal {
         confirmed?: ({ [k: string]: number }|null);
 
         /** CausalMsg content */
-        content?: (string|null);
+        content?: (Uint8Array|null);
     }
 
     /** Represents a CausalMsg. */
@@ -116,7 +116,7 @@ export namespace causal {
         public confirmed: { [k: string]: number };
 
         /** CausalMsg content. */
-        public content: string;
+        public content: Uint8Array;
 
         /**
          * Creates a new CausalMsg instance using the specified properties.

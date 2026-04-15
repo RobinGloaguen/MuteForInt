@@ -21,5 +21,5 @@ message CausalMsg {
   CausalType type = 4;
   bytes shard = 5;
   map<int32, int32> confirmed = 6; // sd → sn
-  string content = 7;
+  bytes content = 7;
 }

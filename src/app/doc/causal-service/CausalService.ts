@@ -51,7 +51,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   private nbByz: number
 
   // Contenu des witness : sd:sn -> Map<sender, content>
-  private witnessContent : Map<string, Map<number, string | null>>
+  private witnessContent : Map<string, Map<number, Uint8Array | null>>
 
   private suspected : Set<number>
   public deliverSubject: Subject<{ senderNetworkId: number, content: Uint8Array }>
@@ -280,7 +280,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   // ---- Helpers witnessContent ----
 
-  private setWitnessContent(sd: number, sn: number, sender: number, val: string | null): void {
+  private setWitnessContent(sd: number, sn: number, sender: number, val: Uint8Array | null): void {
     const key = this.makeKey(sd, sn)
     let inner = this.witnessContent.get(key)
     if (!inner) {
@@ -290,20 +290,30 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     inner.set(sender, val)
   }
 
-  private getAllWitnessContent(sd: number, sn: number): Map<number, string |null > {
+  private getAllWitnessContent(sd: number, sn: number): Map<number, Uint8Array |null > {
     return this.witnessContent.get(this.makeKey(sd, sn)) ?? new Map()
   }
 
-  private getWinningWitness(sd: number, sn: number, borne: number ): string | null | undefined{
+  private getWinningWitness(sd: number, sn: number, borne: number ): Uint8Array | null | undefined{
     const witnesses = this.getAllWitnessContent(sd, sn)
-    const counts = new Map<string | null, number>()
+    const counts = new Map<string, { count: number, value: Uint8Array | null }>()
     for (const [, m] of witnesses) {
-      counts.set(m, (counts.get(m) ?? 0) + 1)
+      const key = m === null ? '__null__' : Array.from(m).join(',')
+      //counts.set(m, (counts.get(m) ?? 0) + 1)
+      const existing = counts.get(key)
+    if (existing) {
+      existing.count++
+    } else {
+      counts.set(key, { count: 1, value: m })
     }
-    for (const [m, count] of counts) {
-      if (count >= borne) return m
+  }
+
+    for (const { count, value } of counts.values()) {
+      if (count >= borne) return value
     }
+   
     return undefined
+  
   }
 
   // ---- try_deliver ----
@@ -333,7 +343,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
           mid: { sd, sn },
           initialSender: sd,
           type: causal.CausalType.WITNESS,
-          content : content
+          content : encodeContent
         })
         this.send(witnessMsg, StreamsSubtype.CAUSAL_WITNESS as any)
       }
@@ -363,22 +373,28 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
     if (m != null) {
       //Rajout pour le test
       //On a déjà décodé normalement
-      const shardArray = this.getShardsForMessage(sd, sn) //ajout
-      const encodeContent = await combine(shardArray) //ajout
+      //const shardArray = this.getShardsForMessage(sd, sn) //ajout
+      //const encodeContent = await combine(shardArray) //ajout
+
+      //const shardArray = [...shardsForPoly.entries()].map(([, shard]) => shard)
+      //const encodeContent = await combine(shardArray)
+//todo meme pas utilisé encode, mais juste m 
 
       // ---- Interception ping / pong avant de monter à mute-core ----
       const text = m
+       const decoder = new TextDecoder()
+      const content = decoder.decode(m)
 
-      if (text === 'ping') {
+      if (content === 'ping') {
         if (sd !== this.myNetworkId) {
           this.respondToPing(sd, sn)   // on répond au ping des autres
         }
         // ne remonte pas à mute-core
-      } else if (text.startsWith('pong:')) {
-        this.handlePongReceived(text, sd)   // on traite le pong si c'est notre ping
+      } else if (content.startsWith('pong:')) {
+        this.handlePongReceived(content, sd)   // on traite le pong si c'est notre ping
         // ne remonte pas à mute-core
       } else {
-        this.deliverSubject.next({ senderNetworkId: sd, content: encodeContent })
+        this.deliverSubject.next({ senderNetworkId: sd, content: text })
         console.warn("---- J'ai déliver c'était différent de null------")
       }
     
@@ -548,7 +564,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       return
     }
     this.addToRegister(this.shardRegister, key, idSender)
-    this.setShardForMessage(mid.sd!, mid.sn!, this.myNetworkId!, shard)
+    this.setShardForMessage(mid.sd!, mid.sn!, this.myNetworkId!, shard) 
+    //On enregistre le shard qu'on a reçu. C'est le notre donc on peut le faire directement, pas besoin d'attendre de reveal pour ça
 
     this.logStep(key, `Avant le wait de causalité résolu`, t0)
     //todo ici changement

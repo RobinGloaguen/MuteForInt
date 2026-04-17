@@ -155,8 +155,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         }
 
         case causal.CausalType.REVEAL: {
-          if (this.hasInRegister(this.reveal, key, idSender)) { return }
-          this.addToRegister(this.reveal, key, idSender)
+          if (this.hasInSet(this.reveal, key, idSender)) { return }
+          this.addToSet(this.reveal, key, idSender)
 
           await this.waitUntil(() => {
             const entries = Object.entries(past!)
@@ -181,19 +181,19 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
         //Je réceptionne les Attest
         case causal.CausalType.ATTEST: {
-          if (this.hasInRegister(this.attest, key, idSender)) { return }
+          if (this.hasInSet(this.attest, key, idSender)) { return }
           this.addToSet(this.attest, key, idSender)
           break
         }
         //Je réceptionne les confirm
         case causal.CausalType.CONFIRM: {
-          if (this.hasInRegister(this.confirm, key, idSender)) { return }
+          if (this.hasInSet(this.confirm, key, idSender)) { return }
           this.addToSet(this.confirm, key, idSender)
           break
         }
 
         case causal.CausalType.WITNESS: {
-          if (this.hasInRegister(this.witness, key, idSender)) { return }
+          if (this.hasInSet(this.witness, key, idSender)) { return }
           this.setWitnessContent(mid!.sd!, mid!.sn!, idSender, content ?? null)
           this.addToSet(this.witness, key, idSender)
           const count = this.getCountFromSet(this.witness, key)
@@ -214,6 +214,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
               type: causal.CausalType.WITNESS,
               content: m
             })
+            this.addToSet(this.witness, key, this.myNetworkId!) //todo car on ne se l'envoie pas a soit meme
+
             this.send(witnessMsg, StreamsSubtype.CAUSAL_WITNESS as any)
           }
           
@@ -231,18 +233,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   // ---- Helpers register (Set) ----
 
-  private hasInRegister(register: Map<string, Set<number>>, key: string, sender: number): boolean {
+  private hasInSet(register: Map<string, Set<number>>, key: string, sender: number): boolean {
     return register.get(key)?.has(sender) ?? false
   }
 
-  private addToRegister(register: Map<string, Set<number>>, key: string, sender: number): void {
-    let inner = register.get(key)
-    if (!inner) {
-      inner = new Set()
-      register.set(key, inner)
-    }
-    inner.add(sender)
-  }
 
   // FIX : nouveaux helpers pour Map<string, Set<number>> (attest, confirm, witness)
   private addToSet(map: Map<string, Set<number>>, key: string, sender: number): void {
@@ -339,6 +333,9 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       //Normalement pas besoin je crois
       if (!this.witnessSent.has(key)) {
         this.witnessSent.add(key)
+
+        this.setWitnessContent(sd, sn, this.myNetworkId!, encodeContent)
+        this.addToSet(this.witness, key, this.myNetworkId!)
         const witnessMsg = new causal.CausalMsg({
           mid: { sd, sn },
           initialSender: sd,
@@ -351,7 +348,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       const key = this.makeKey(sd, sn)
       //Normalement pas besoin je crois
       if (!this.witnessSent.has(key)) {
+
         this.witnessSent.add(key)
+        this.addToSet(this.witness, key, this.myNetworkId!) //todo car on ne se l'envoie pas a soit meme
+        this.setWitnessContent(sd, sn, this.myNetworkId!, null)
         const witnessMsg = new causal.CausalMsg({
           mid: { sd, sn },
           initialSender: sd,
@@ -559,11 +559,11 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
     if (idSender !== mid.sd
       || mid.sn !== (this.delivered.get(mid.sd!) ?? 0) + 1
-      || this.hasInRegister(this.shardRegister, key, idSender)) {
+      || this.hasInSet(this.shardRegister, key, idSender)) {
       console.warn("---RECEPTION DOUBLON D'UN MID SHARD---")
       return
     }
-    this.addToRegister(this.shardRegister, key, idSender)
+    this.addToSet(this.shardRegister, key, idSender)
     this.setShardForMessage(mid.sd!, mid.sn!, this.myNetworkId!, shard) 
     //On enregistre le shard qu'on a reçu. C'est le notre donc on peut le faire directement, pas besoin d'attendre de reveal pour ça
 
@@ -581,6 +581,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
     if (!this.attestSent.has(key)) {
       this.attestSent.add(key)
+      this.addToSet(this.attest, key, this.myNetworkId!) //todo car on ne se l'envoie pas a soit meme
       const attestMsg = new causal.CausalMsg({
         mid, initialSender: mid.sd, type: causal.CausalType.ATTEST
       })
@@ -597,6 +598,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
     if (!this.confirmSent.has(key)) {
       this.confirmSent.add(key)
+      this.addToSet(this.confirm, key, this.myNetworkId!) //todo car on ne se l'envoie pas a soit meme
       const confirmMsg = new causal.CausalMsg({
         mid, initialSender: mid.sd, type: causal.CausalType.CONFIRM
       })
@@ -609,6 +611,8 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
     if (!this.revealSent.has(key)) {
       this.revealSent.add(key)
+      this.addToSet(this.reveal, key, this.myNetworkId!) //todo car on ne se l'envoie pas a soit meme
+
       const revealMsg = new causal.CausalMsg({
         mid, initialSender: mid.sd,
         type: causal.CausalType.REVEAL,
@@ -641,12 +645,15 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   private async startPingRTT(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 10000))
-    if (this.joinedPeers[0] == this.myNetworkId!) {
-      const sn = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
-      const key = this.makeKey(this.myNetworkId!, sn)
-      this.pingTimestamps.set(key, Date.now())
-      const encoder = new TextEncoder()
-      this.causal_broadcast(encoder.encode('ping'))
+    while (true){
+      await new Promise(resolve => setTimeout(resolve, 30000))
+      if (this.joinedPeers[0] == this.myNetworkId!) {
+        const sn = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
+        const key = this.makeKey(this.myNetworkId!, sn)
+        this.pingTimestamps.set(key, Date.now())
+        const encoder = new TextEncoder()
+        this.causal_broadcast(encoder.encode('ping'))
+      }
     }
   }
 
@@ -655,7 +662,10 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
   private respondToPing(pingSd: number, pingSn: number): void {
     const encoder = new TextEncoder()
     const pongContent = encoder.encode(`pong:${pingSd}:${pingSn}`)
-    this.causal_broadcast(pongContent)
+    if (this.myNetworkId! === this.joinedPeers[1] ){
+      this.causal_broadcast(pongContent)
+    }
+   
   }
 
   // ---- RTT : réception d'un pong répondant à notre ping ----

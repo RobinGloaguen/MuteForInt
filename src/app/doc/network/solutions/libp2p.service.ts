@@ -22,6 +22,42 @@ import { StreamId,IMessageIn, IMessageOut } from '../../causal-service/IMessage'
 
 
 const PROTOCOL = '/chat/1.0.0'
+
+class AsyncQueue<T> {
+  private items: T[] = []
+  private waiters: ((r: IteratorResult<T>) => void)[] = []
+  private closed = false
+
+  push(item: T): void {
+    if (this.waiters.length > 0) {
+      this.waiters.shift()!({ value: item, done: false })
+    } else {
+      this.items.push(item)
+    }
+  }
+
+  close(): void {
+    this.closed = true
+    while (this.waiters.length > 0) {
+      this.waiters.shift()!({ value: undefined as any, done: true })
+    }
+  }
+
+  async *[Symbol.asyncIterator](): AsyncGenerator<T> {
+    while (true) {
+      if (this.items.length > 0) {
+        yield this.items.shift()!
+      } else if (this.closed) {
+        return
+      } else {
+        const result = await new Promise<IteratorResult<T>>(resolve => this.waiters.push(resolve))
+        if (result.done) return
+        yield result.value
+      }
+    }
+  }
+}
+
 export class Libp2pService extends NetworkSolutionServiceFunctions implements INetworkSolution {
   public myNetworkId: Subject<number>
   public peers: number[]
@@ -42,6 +78,8 @@ export class Libp2pService extends NetworkSolutionServiceFunctions implements IN
   public signalingAddressTest: string
 
   public libp2pInstance: Libp2p
+
+  private outgoingQueues = new Map<string, AsyncQueue<Uint8Array>>()
 
   public readonly USE_GROUP = true
   public readonly USE_SERVER = true
@@ -227,6 +265,8 @@ export class Libp2pService extends NetworkSolutionServiceFunctions implements IN
     this.peerIdAsNumbersReverse.clear()
     this.peersOnTheSameDocument = []
     this.peersOnAnotherDocument = []
+    for (const queue of this.outgoingQueues.values()) queue.close()
+    this.outgoingQueues.clear()
   }
 
   /**
@@ -247,6 +287,9 @@ export class Libp2pService extends NetworkSolutionServiceFunctions implements IN
       this.peersOnAnotherDocument.splice(indexOfPeer, 1)
     }
     this.removePeerIdAsNumberFromMap(remotePeerId)
+    const addr = `${environment.p2p.signalingServer}p2p/${remotePeerId}`
+    this.outgoingQueues.get(addr)?.close()
+    this.outgoingQueues.delete(addr)
   }
 
   /**
@@ -302,37 +345,33 @@ export class Libp2pService extends NetworkSolutionServiceFunctions implements IN
    * @param peerMultiAddr the multiaddr of the peer we are sending to
    */
   async sendMessage(message: Uint8Array, peerMultiAddr: Multiaddr): Promise<void> {
-    try {
-      const connections = this.libp2pInstance.connectionManager.getConnections()
+    const key = peerMultiAddr.toString()
 
-      const indexConnectionReceiverPeer = connections.findIndex(
-        (connection) => connection.remoteAddr.toString() === peerMultiAddr.toString()
-      )
-      const connectionReceiverPeer = connections[indexConnectionReceiverPeer]
-      //We can dial when connection is undefined (first contact) or when the connection is not undefined and opened
-      if (connectionReceiverPeer === undefined || (connectionReceiverPeer !== undefined && connectionReceiverPeer.stat.status === 'OPEN')) {
+    if (!this.outgoingQueues.has(key)) {
+      try {
         const { stream } = await this.libp2pInstance.dialProtocol(peerMultiAddr, PROTOCOL)
-        await pipe([message], stream)
-        stream.close()
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        switch (err.message) {
-          case 'stream ended before 1 bytes became available':
-            // Do nothing as the error stems from the fact that we are trying to send data to a peer that isn't connected anymore
-            break
-          case 'All promises were rejected':
-            // Do nothing as the error stems from trying to send our PeerIdAsANumber and documentKey to a peer that has no connection to us
-            break
-          case 'Too many streams open':
-            //Too many streams are open
-            break
-          default:
-            console.error('There was an unexpected error while sending data : ', err.message)
-            break
+        const queue = new AsyncQueue<Uint8Array>()
+        pipe(queue, stream.sink).catch(() => {
+          this.outgoingQueues.get(key)?.close()
+          this.outgoingQueues.delete(key)
+        })
+        this.outgoingQueues.set(key, queue)
+      } catch (err) {
+        if (err instanceof Error) {
+          switch (err.message) {
+            case 'stream ended before 1 bytes became available':
+            case 'All promises were rejected':
+            case 'Too many streams open':
+              break
+            default:
+              console.error('There was an unexpected error while sending data : ', err.message)
+          }
         }
+        return
       }
     }
+
+    this.outgoingQueues.get(key)?.push(message)
   }
 
   /**

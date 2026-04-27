@@ -192,7 +192,7 @@ export class CausalBridgeService implements OnDestroy {
 
   // À appeler quand tous les peers sont connectés
 private async startPingRTT(joinedPeers: number[]): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 10000))
+  await new Promise(resolve => setTimeout(resolve, 5000))
   
   if (joinedPeers[0] === this.myNetworkId!) {
     const sn = 1

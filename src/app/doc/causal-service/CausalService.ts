@@ -3,6 +3,7 @@ import { IMessageIn, IMessageOut, Service } from './IMessage'
 import { split, combine, interpolatePolynomial } from './shamit-secret-sharing'
 import { causal } from './causal_proto.js'
 import { StreamsSubtype, Streams } from '../Streams'
+import { time } from 'console'
 
 const CausalMsgFactory = causal.CausalMsg
 
@@ -400,17 +401,17 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
           for (const msg of msgs) {
             const text = decoder.decode(msg)
-
-            // Ping interne : mesure la latence entre envoi et réception
             if (text.startsWith('ping:')) {
-                if (sd !== this.myNetworkId) {
-                    const receiveTime = Date.now()
-                    const sendTime = Number(text.split(':')[1])
-                    const latency = receiveTime - sendTime
-                    console.log(`[LATENCE] Message ping reçu de ${sd} → latence = ${latency}ms`)
-                }
-                continue
-            }
+              if (sd !== this.myNetworkId) {
+                  const receiveTime = Date.now()
+                  const parts = text.split(':')
+                  const pingId = parts[1]
+                  const sendTime = Number(parts[2])
+                  const latency = receiveTime - sendTime
+                  console.log(`[LATENCE] ping#${pingId} reçu de ${sd} → latence = ${latency}ms`)
+              }
+              continue
+          }
 
             this.deliverSubject.next({ senderNetworkId: sd, content: msg })
           }
@@ -754,13 +755,113 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   // Attend 30s puis envoie un ping horodaté si on est le pair initiateur (joinedPeers[0])
   private async startPingRTT(): Promise<void> {
-      await new Promise(resolve => setTimeout(resolve, 30000))
+    for (let j = 0; j < 5; j++) {
+      await new Promise(resolve => setTimeout(resolve, 10000))
       if (this.joinedPeers[0] == this.myNetworkId!) {
           const encoder = new TextEncoder()
           const sendTime = Date.now()
-          this.causal_broadcast(encoder.encode(`ping:${sendTime}`))
+          this.causal_broadcast(encoder.encode(`ping:${j}:${sendTime}`))
       }
+    }   
+    this.startPingRTT2();
   }
+
+  // Attend 30s puis envoie un ping horodaté si on est le pair initiateur (joinedPeers[0])
+  private async startPingRTT2(): Promise<void> {
+    console.log('Démarrage de la boucle de ping RTT 2')
+
+    for (let j = 0; j < 5; j++) {
+      await new Promise(resolve => setTimeout(resolve, 10000))
+      for (let i = 10; i < 15; i++) {
+        if (this.joinedPeers[0] == this.myNetworkId!) {
+            const encoder = new TextEncoder()
+            const sendTime = Date.now()
+            this.causal_broadcast(encoder.encode(`ping:${i}:${sendTime}`))
+            //attend 10 ms
+            await new Promise(resolve => setTimeout(resolve, 10))
+        }
+      }   
+    }
+  }
+
+private async startPingRTT3(): Promise<void> {
+    console.log('Démarrage de la boucle de ping RTT 3')
+
+    if (this.joinedPeers[0] !== this.myNetworkId!) return
+
+    for (let j = 0; j < 5; j++) {
+      await new Promise(resolve => setTimeout(resolve, 10000))
+
+      const queue: Array<{ i: number, sendTime: number }> = []
+
+      // Remplit la queue en 100ms
+      for (let i = 0; i < 10; i++) {
+          const t = Date.now()
+        queue.push({ i, sendTime: Date.now() })
+         console.log(`[FILL] ping#${i} sendTime=${t}`)
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      // Envoie un message à chaque fois que le delivered s'incrémente
+      while (queue.length > 0) {
+        const { i, sendTime } = queue.shift()!
+        const encoder = new TextEncoder()
+        const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
+        const msg = encoder.encode(`ping:${i}:${sendTime}`)
+        
+        // Framing binaire comme try_broadcast
+        const buf = new Uint8Array(4 + msg.length)
+        new DataView(buf.buffer).setUint32(0, msg.length, false)
+        buf.set(msg, 4)
+
+        await this.processSingleBroadcast(buf, snMid)
+        await this.waitUntilDelivered(this.myNetworkId!, snMid)
+      }
+    }
+    // Attend 10s APRÈS que le tour est terminé
+    await new Promise(resolve => setTimeout(resolve, 40000))
+  }
+
+  //----------------------------------------
+  async measureSequentialPings(count = 10, intervalMs = 10): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 10000))
+
+    if (this.myNetworkId === undefined) {
+      console.warn('[PING SEQ] myNetworkId non initialisé')
+      return
+    }
+
+    const encoder = new TextEncoder()
+    const globalStart = Date.now()
+
+    for (let i = 0; i < count; i++) {
+      // L'horloge logique du i-ème ping : T0 + i * 10ms
+      const pingClock = globalStart + i * intervalMs
+
+      const rawMsg = encoder.encode(`ping:${pingClock}`)
+
+      // Framing binaire d'un seul message (pas de regroupement)
+      const buf = new Uint8Array(4 + rawMsg.length)
+      new DataView(buf.buffer).setUint32(0, rawMsg.length, false)
+      buf.set(rawMsg, 4)
+
+      const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
+      const tSend = Date.now()
+
+      // Envoie direct, sans passer par broadcastBuffer
+      await this.processSingleBroadcast(buf, snMid)
+
+      // Attend que CE ping soit livré avant d'envoyer le suivant
+      await this.waitUntilDelivered(this.myNetworkId!, snMid)
+
+      console.log(
+        `[Latence du ping] ping ${i + 1}/${count} | clock=${pingClock} | latence=${Date.now() - globalStart}ms`
+      )
+    }
+
+    //console.log(`[PING SEQ] Durée totale : ${Date.now() - globalStart}ms pour ${count} pings`)
+  }
+
+
 
   // Log un jalon de performance avec le temps écoulé depuis t0
   private logStep(key: string, step: string, t0: number): number {
@@ -808,5 +909,41 @@ export class Queue<T> {
   }
   isEmpty(): boolean {
     return this.size === 0
+  }
+}
+
+// async-queue.ts
+export class AsyncQueue<T> {
+  private items: T[] = []
+  private waiters: ((r: IteratorResult<T>) => void)[] = []
+  private closed = false
+
+  push(item: T): void {
+    if (this.waiters.length > 0) {
+      this.waiters.shift()!({ value: item, done: false })
+    } else {
+      this.items.push(item)
+    }
+  }
+
+  close(): void {
+    this.closed = true
+    while (this.waiters.length > 0) {
+      this.waiters.shift()!({ value: undefined as any, done: true })
+    }
+  }
+
+  async *[Symbol.asyncIterator](): AsyncGenerator<T> {
+    while (true) {
+      if (this.items.length > 0) {
+        yield this.items.shift()!
+      } else if (this.closed) {
+        return
+      } else {
+        const result = await new Promise<IteratorResult<T>>(resolve => this.waiters.push(resolve))
+        if (result.done) return
+        yield result.value
+      }
+    }
   }
 }

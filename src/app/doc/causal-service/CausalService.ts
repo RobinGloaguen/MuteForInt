@@ -111,7 +111,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         // Démarre la mesure de latence dès que tous les pairs sont connectés
         if (this.joinedPeers.length === this.nbCollab && !this.pingTriggered) {
           this.pingTriggered = true
-          this.startPingRTT()
+          this.startPingRTT3()
         }
       }
     })
@@ -792,21 +792,22 @@ private async startPingRTT3(): Promise<void> {
     for (let j = 0; j < 5; j++) {
       await new Promise(resolve => setTimeout(resolve, 10000))
 
-      const queue: Array<{ i: number, sendTime: number }> = []
-
+      const queue: Array<{ i: number}> = []
+      const t = Date.now()
       // Remplit la queue en 100ms
-      for (let i = 0; i < 10; i++) {
-          const t = Date.now()
-        queue.push({ i, sendTime: Date.now() })
-         console.log(`[FILL] ping#${i} sendTime=${t}`)
-        await new Promise(resolve => setTimeout(resolve, 10))
+      for (let i = 0; i < 5; i++) {
+          
+        queue.push({ i })
+         
       }
       // Envoie un message à chaque fois que le delivered s'incrémente
       while (queue.length > 0) {
-        const { i, sendTime } = queue.shift()!
+        const { i } = queue.shift()!
         const encoder = new TextEncoder()
         const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
-        const msg = encoder.encode(`ping:${i}:${sendTime}`)
+        console.log(`[FILL MESSAGE ENVOYÉ] ping#${i}`)
+
+        const msg = encoder.encode(`ping:${i}:${t}`)
         
         // Framing binaire comme try_broadcast
         const buf = new Uint8Array(4 + msg.length)
@@ -818,50 +819,8 @@ private async startPingRTT3(): Promise<void> {
       }
     }
     // Attend 10s APRÈS que le tour est terminé
-    await new Promise(resolve => setTimeout(resolve, 40000))
-  }
-
-  //----------------------------------------
-  async measureSequentialPings(count = 10, intervalMs = 10): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 10000))
-
-    if (this.myNetworkId === undefined) {
-      console.warn('[PING SEQ] myNetworkId non initialisé')
-      return
-    }
-
-    const encoder = new TextEncoder()
-    const globalStart = Date.now()
-
-    for (let i = 0; i < count; i++) {
-      // L'horloge logique du i-ème ping : T0 + i * 10ms
-      const pingClock = globalStart + i * intervalMs
-
-      const rawMsg = encoder.encode(`ping:${pingClock}`)
-
-      // Framing binaire d'un seul message (pas de regroupement)
-      const buf = new Uint8Array(4 + rawMsg.length)
-      new DataView(buf.buffer).setUint32(0, rawMsg.length, false)
-      buf.set(rawMsg, 4)
-
-      const snMid = (this.delivered.get(this.myNetworkId!) ?? 0) + 1
-      const tSend = Date.now()
-
-      // Envoie direct, sans passer par broadcastBuffer
-      await this.processSingleBroadcast(buf, snMid)
-
-      // Attend que CE ping soit livré avant d'envoyer le suivant
-      await this.waitUntilDelivered(this.myNetworkId!, snMid)
-
-      console.log(
-        `[Latence du ping] ping ${i + 1}/${count} | clock=${pingClock} | latence=${Date.now() - globalStart}ms`
-      )
-    }
-
-    //console.log(`[PING SEQ] Durée totale : ${Date.now() - globalStart}ms pour ${count} pings`)
   }
-
-
 
   // Log un jalon de performance avec le temps écoulé depuis t0
   private logStep(key: string, step: string, t0: number): number {

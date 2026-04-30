@@ -121,7 +121,7 @@ export class CausalBridgeService implements OnDestroy {
 
           if (this._joinedPeers.length === this._nbCollab && !this.pingTriggered) {
             this.pingTriggered = true
-            this.startPingRTT(this._joinedPeers)
+            //this.startPingRTT(this._joinedPeers)
           }
         }
       })
@@ -192,22 +192,24 @@ export class CausalBridgeService implements OnDestroy {
 
   // À appeler quand tous les peers sont connectés
 private async startPingRTT(joinedPeers: number[]): Promise<void> {
+  for (let i = 0; i < 5; i++) {
   await new Promise(resolve => setTimeout(resolve, 5000))
-  
-  if (joinedPeers[0] === this.myNetworkId!) {
-    const sn = 1
-    const key = this.makeKey(this.myNetworkId!, sn)
-    this.pingTimestamps.set(key, Date.now())
-    
-    const encoder = new TextEncoder()
-    const content = encoder.encode(`ping:${this.myNetworkId}:${sn}`)
-    
-    // Broadcast à tous via le réseau directement
-    this.network.send(
-      { type: Streams.PING_PONG, subtype: StreamsSubtype.PING },
-      content,
-      undefined  // broadcast
-    )
+
+    if (joinedPeers[0] === this.myNetworkId!) {
+      const sn = 1
+      const key = this.makeKey(this.myNetworkId!, sn)
+      this.pingTimestamps.set(key, Date.now())
+      
+      const encoder = new TextEncoder()
+      const content = encoder.encode(`ping:${this.myNetworkId}:${sn}`)
+      
+      // Broadcast à tous via le réseau directement
+      this.network.send(
+        { type: Streams.PING_PONG, subtype: StreamsSubtype.PING },
+        content,
+        undefined  // broadcast
+      )
+    }
   }
 }
 

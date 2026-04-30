@@ -11,6 +11,8 @@ const CausalMsgFactory = causal.CausalMsg
 // les fait circuler via les phases SHARD → ATTEST → CONFIRM → REVEAL → WITNESS,
 // puis reconstitue et livre le message original.
 export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg> {
+  //Pour pong rtt
+  private pingTimestamps: Map<string, number> = new Map()
   public myNetworkId$: Observable<number>
   public myNetworkId?: number
 
@@ -111,7 +113,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         // Démarre la mesure de latence dès que tous les pairs sont connectés
         if (this.joinedPeers.length === this.nbCollab && !this.pingTriggered) {
           this.pingTriggered = true
-          this.startPingRTT3()
+          this.startPingRTT()
         }
       }
     })
@@ -138,6 +140,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
       const conf = msg.confirmed
       const content = msg.content
       const key = this.makeKey(mid!.sd!, mid!.sn!)
+      /*
       console.log(
         'Causal reçoit type:',
         causal.CausalType[msg.type!],
@@ -148,6 +151,7 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
         'envoyé par ',
         idSender
       )
+        */
 
       switch (msg.type) {
         case causal.CausalType.SHARD: {
@@ -402,16 +406,22 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
           for (const msg of msgs) {
             const text = decoder.decode(msg)
             if (text.startsWith('ping:')) {
-              if (sd !== this.myNetworkId) {
-                  const receiveTime = Date.now()
-                  const parts = text.split(':')
-                  const pingId = parts[1]
-                  const sendTime = Number(parts[2])
-                  const latency = receiveTime - sendTime
-                  console.log(`[LATENCE] ping#${pingId} reçu de ${sd} → latence = ${latency}ms`)
-              }
+              const parts = text.split(':')
+              const pingId = Number(parts[1])
+              const sendTime = Number(parts[2])
+              const latency = Date.now() - sendTime
+              console.log(`[LATENCE PING] ping#${pingId} reçu de ${sd} → latence = ${latency}ms`)
+              this.respondToPing(sd, pingId)  // on répond au ping
+              
+              
+              
               continue
-          }
+            }
+
+            if (text.startsWith('pong:')) {
+              this.handlePongReceived(text, sd)
+              continue
+            }
 
             this.deliverSubject.next({ senderNetworkId: sd, content: msg })
           }
@@ -755,15 +765,19 @@ export class CausalService extends Service<causal.ICausalMsg, causal.ICausalMsg>
 
   // Attend 30s puis envoie un ping horodaté si on est le pair initiateur (joinedPeers[0])
   private async startPingRTT(): Promise<void> {
-    for (let j = 0; j < 5; j++) {
-      await new Promise(resolve => setTimeout(resolve, 10000))
-      if (this.joinedPeers[0] == this.myNetworkId!) {
+    await new Promise(resolve => setTimeout(resolve, 8000))
+    if (this.joinedPeers[1] !== this.myNetworkId!) {
+      for (let j = 0; j < 30; j++) {
+          await new Promise(resolve => setTimeout(resolve, 1500))
           const encoder = new TextEncoder()
           const sendTime = Date.now()
+          const key = this.makeKey(this.myNetworkId!, j)
+          this.pingTimestamps.set(key, sendTime)  // ← enregistre avant l'envoi
           this.causal_broadcast(encoder.encode(`ping:${j}:${sendTime}`))
-      }
-    }   
-    this.startPingRTT2();
+      }   
+    }
+    
+    //this.startPingRTT2();
   }
 
   // Attend 30s puis envoie un ping horodaté si on est le pair initiateur (joinedPeers[0])
@@ -794,11 +808,8 @@ private async startPingRTT3(): Promise<void> {
 
       const queue: Array<{ i: number}> = []
       const t = Date.now()
-      // Remplit la queue en 100ms
       for (let i = 0; i < 5; i++) {
-          
         queue.push({ i })
-         
       }
       // Envoie un message à chaque fois que le delivered s'incrémente
       while (queue.length > 0) {
@@ -825,8 +836,32 @@ private async startPingRTT3(): Promise<void> {
   // Log un jalon de performance avec le temps écoulé depuis t0
   private logStep(key: string, step: string, t0: number): number {
     const now = Date.now()
-    console.log(`[PERF] ${key} | ${step} | +${now - t0}ms`)
+    //console.log(`[PERF] ${key} | ${step} | +${now - t0}ms`)
     return now
+  }
+
+  private respondToPing(pingSd: number, pingSn: number): void {
+    const encoder = new TextEncoder()
+    const pongContent = encoder.encode(`pong:${pingSd}:${pingSn}`)
+    if (this.myNetworkId! === this.joinedPeers[1]) {
+      this.causal_broadcast(pongContent)
+    }
+  }
+
+  private handlePongReceived(text: string, pongSender: number): void {
+    const parts = text.split(':')
+    const pingSd = Number(parts[1])
+    const pingSn = Number(parts[2]) //C'est l'id pas le Sn du coup
+    if (pingSd === this.myNetworkId) {
+      const key = this.makeKey(pingSd, pingSn)
+      const t0 = this.pingTimestamps.get(key)
+      if (t0 !== undefined) {
+        const rtt = Date.now() - t0
+        const latency = rtt / 2
+        console.log(`[RTT] Pong de ${pongSender} → RTT=${rtt}ms, latence estimée ≈ ${latency}ms pour ping#${pingSn}`)
+        this.pingTimestamps.delete(key)
+      }
+    }
   }
 }
 
@@ -905,4 +940,6 @@ export class AsyncQueue<T> {
       }
     }
   }
+
+  
 }

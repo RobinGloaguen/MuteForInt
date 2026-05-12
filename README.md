@@ -6,7 +6,7 @@ Changement de CausalService en Event Driven à la place de Wait Until avec Timeo
 
 La libp2p refusait d'envoyer des messages à son propre processus donc j'ai remplacé la recepetion de shard par une fonction qu'on appel.
 
-# Benchemark
+# Récupération d'une librairie
 
-Le .time() qui start le ping n'est pas idéalement placé.
+Pour l'implémentation de l'algorithme Secret Sharing nous avons récupéré le code de cette [bibliotheque](https://github.com/privy-io/shamir-secret-sharing) que nous avons légèrement modifié pour ne travailler avec des X allant de 1 à n et non des valeurs aléatoires.
 
